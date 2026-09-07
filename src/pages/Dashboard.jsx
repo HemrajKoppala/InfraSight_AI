@@ -160,10 +160,6 @@ function Dashboard({ setCurrentPage }) {
             <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
               Cabinet Secretariat Monitoring Framework
             </span>
-            <span className="text-slate-300">|</span>
-            <span className="text-xs text-slate-500 font-medium">
-              MoSPI OCMS Portal
-            </span>
           </div>
           <h1 className="text-xl font-bold text-slate-900 mt-1">
             Central Infrastructure Operations Dashboard
