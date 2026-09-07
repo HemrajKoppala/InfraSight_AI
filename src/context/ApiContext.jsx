@@ -248,6 +248,13 @@ export function ApiProvider({ children }) {
     }
   };
 
+  const clearAllAlerts = useCallback(() => {
+    setAlerts((prev) =>
+      prev.map((a) => ({ ...a, status: "Acknowledged" }))
+    );
+    showToast("All active notifications cleared.", "info");
+  }, []);
+
   return (
     <ApiContext.Provider
       value={{
@@ -281,6 +288,7 @@ export function ApiProvider({ children }) {
         fetchAlerts,
         acknowledgeAlert,
         escalateAlert,
+        clearAllAlerts,
         isSettingsOpen,
         setIsSettingsOpen,
         toast,

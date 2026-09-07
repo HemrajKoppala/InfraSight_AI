@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import LandingPage from "./pages/LandingPage";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
@@ -9,32 +9,223 @@ import RiskAnalysis from "./pages/RiskAnalysis";
 import Alerts from "./pages/Alerts";
 import Reports from "./pages/Reports";
 import ProjectDetails from "./pages/ProjectDetails";
-import ApiSettingsModal from "./components/ApiSettingsModal";
+import UserManagement from "./pages/admin/UserManagement";
+import ForbiddenPage from "./pages/ForbiddenPage";
+import NotFoundPage from "./pages/NotFoundPage";
+import LoginPage from "./pages/auth/LoginPage";
+import RegisterPage from "./pages/auth/RegisterPage";
+import PendingScreen from "./pages/auth/PendingScreen";
+import RejectedScreen from "./pages/auth/RejectedScreen";
 import Toast from "./components/Toast";
 import { useApi } from "./context/ApiContext";
+import { useAuth } from "./context/AuthContext";
+import { hasPermission, PAGE_PERMISSIONS } from "./lib/permissions";
+
+const VALID_PAGES = [
+  "dashboard",
+  "projects",
+  "analytics",
+  "ai",
+  "alerts",
+  "reports",
+  "details",
+  "users",
+  "403",
+  "404",
+];
+
+const VALID_AUTH_ROUTES = [
+  "landing",
+  "login",
+  "register",
+  "pending",
+  "rejected",
+  "simulator",
+  "",
+];
+
+function parseUrlRoute() {
+  if (typeof window === "undefined") return "";
+
+  // 1. Check hash first: e.g. #sd, #/sd, #dashboard
+  const rawHash = window.location.hash || "";
+  const cleanedHash = rawHash.replace(/^#\/?/, "").trim().toLowerCase();
+  if (cleanedHash) {
+    return cleanedHash;
+  }
+
+  // 2. Check pathname: e.g. /sd, /dashboard
+  const rawPath = window.location.pathname || "";
+  const cleanedPath = rawPath.replace(/^\/+/, "").replace(/\/+$/, "").trim().toLowerCase();
+  if (cleanedPath && cleanedPath !== "index.html") {
+    return cleanedPath;
+  }
+
+  return "";
+}
 
 function App() {
-  const [showDashboard, setShowDashboard] = useState(false);
-  const [currentPage, setCurrentPage] = useState("dashboard");
-  const [collapsed, setCollapsed] = useState(false);
+  const { isAuthenticated, currentUser, role, logout } = useAuth();
   const { toast, hideToast } = useApi();
 
-  // Citizen Public Portal Landing Page
-  if (!showDashboard) {
+  const initialRoute = parseUrlRoute();
+
+  // Navigation within workspace
+  const [currentPage, setCurrentPageState] = useState(() => {
+    if (!initialRoute || initialRoute === "landing" || initialRoute === "login") {
+      return "dashboard";
+    }
+    if (VALID_PAGES.includes(initialRoute)) {
+      return initialRoute;
+    }
+    return "404";
+  });
+
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Unauthenticated screen state: "login" | "register" | "pending" | "rejected" | "landing" | "404"
+  const [authScreen, setAuthScreenState] = useState(() => {
+    if (!initialRoute || initialRoute === "landing") return "landing";
+    if (["login", "register", "pending", "rejected"].includes(initialRoute)) {
+      return initialRoute;
+    }
+    if (!VALID_PAGES.includes(initialRoute) && !VALID_AUTH_ROUTES.includes(initialRoute)) {
+      return "404";
+    }
+    return "landing";
+  });
+
+  const [authTargetUser, setAuthTargetUser] = useState(null);
+
+  const setCurrentPage = useCallback((pageId) => {
+    setCurrentPageState(pageId);
+    if (typeof window !== "undefined") {
+      window.location.hash = `#${pageId}`;
+    }
+  }, []);
+
+  const setAuthScreen = useCallback((screenId) => {
+    setAuthScreenState(screenId);
+    if (typeof window !== "undefined") {
+      window.location.hash = `#${screenId}`;
+    }
+  }, []);
+
+  // Listen to browser URL changes (hashchange & popstate)
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const route = parseUrlRoute();
+
+      if (isAuthenticated) {
+        if (!route || route === "landing" || route === "login") {
+          setCurrentPageState("dashboard");
+        } else if (VALID_PAGES.includes(route)) {
+          setCurrentPageState(route);
+        } else {
+          setCurrentPageState("404");
+        }
+      } else {
+        if (!route || route === "landing") {
+          setAuthScreenState("landing");
+        } else if (["login", "register", "pending", "rejected"].includes(route)) {
+          setAuthScreenState(route);
+        } else {
+          setAuthScreenState("404");
+        }
+      }
+    };
+
+    window.addEventListener("hashchange", handleUrlChange);
+    window.addEventListener("popstate", handleUrlChange);
+    return () => {
+      window.removeEventListener("hashchange", handleUrlChange);
+      window.removeEventListener("popstate", handleUrlChange);
+    };
+  }, [isAuthenticated]);
+
+  // =========================================================================
+  // UNAUTHENTICATED EXPERIENCE: Access strictly gated behind approved login.
+  // Neither Sidebar, Header, nor Protected Modules can be rendered.
+  // =========================================================================
+  if (!isAuthenticated) {
+    // 0. Invalid Route when unauthenticated: 404 Not Found Page
+    if (authScreen === "404") {
+      return (
+        <NotFoundPage
+          onNavigateDashboard={() => setAuthScreen("login")}
+          onNavigatePrevious={() => setAuthScreen("landing")}
+        />
+      );
+    }
+
+    // 1. Citizen Public Landing Portal
+    if (authScreen === "landing") {
+      return (
+        <LandingPage
+          onEnter={() => setAuthScreen("login")}
+        />
+      );
+    }
+
+    // 2. Departmental Registration Page
+    if (authScreen === "register") {
+      return (
+        <RegisterPage
+          onNavigateLogin={() => setAuthScreen("login")}
+          onRegistrationSuccess={(newUser) => {
+            setAuthTargetUser(newUser);
+            setAuthScreen("pending");
+          }}
+        />
+      );
+    }
+
+    // 3. Pending Administrator Clearance Screen
+    if (authScreen === "pending") {
+      return (
+        <PendingScreen
+          user={authTargetUser}
+          onBackToLogin={() => setAuthScreen("login")}
+        />
+      );
+    }
+
+    // 4. Access Denied / Rejected Screen
+    if (authScreen === "rejected") {
+      return (
+        <RejectedScreen
+          user={authTargetUser}
+          onBackToLogin={() => setAuthScreen("login")}
+        />
+      );
+    }
+
+    // 5. Default: Enterprise Light Mode Login Page
     return (
-      <LandingPage
-        onEnter={() => setShowDashboard(true)}
+      <LoginPage
+        onNavigateRegister={() => setAuthScreen("register")}
+        onShowPending={(user) => {
+          setAuthTargetUser(user);
+          setAuthScreen("pending");
+        }}
+        onShowRejected={(user) => {
+          setAuthTargetUser(user);
+          setAuthScreen("rejected");
+        }}
+        onReturnLanding={() => setAuthScreen("landing")}
       />
     );
   }
 
-  // Central Government Operations Workspace
+  // =========================================================================
+  // AUTHENTICATED & APPROVED: Central Operations Workspace (100% Light Mode)
+  // =========================================================================
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col antialiased">
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col antialiased selection:bg-blue-600 selection:text-white">
       {/* National Tricolor Accent Bar */}
-      <div className="gov-tricolor-bar fixed top-0 left-0 z-50"></div>
+      <div className="h-[2px] bg-gradient-to-r from-orange-500 via-white to-emerald-500 fixed top-0 left-0 right-0 z-50"></div>
 
-      {/* Global Navigation Sidebar */}
+      {/* Global Navigation Sidebar (Light Mode) */}
       <Sidebar
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
@@ -44,54 +235,77 @@ function App() {
 
       {/* Main Operations Frame */}
       <div
-        className={`flex-1 flex flex-col transition-all duration-300 ${
-          collapsed ? "ml-20" : "ml-64"
+        className={`flex-1 flex flex-col transition-[margin] duration-250 ease-in-out min-w-0 ${
+          collapsed ? "md:ml-16" : "md:ml-[268px]"
         }`}
       >
-        {/* Sticky Government Application Header */}
+        {/* Clean Application Header (Clutter removed) */}
         <Header
           currentPage={currentPage}
-          onReturnToLanding={() => setShowDashboard(false)}
           onSelectPage={setCurrentPage}
+          onToggleMobileMenu={() => setCollapsed(false)}
         />
 
-        {/* Primary Page Router */}
+        {/* Primary Protected Page Router with RBAC Guard (403 Forbidden & 404 Fallback) */}
         <main className="flex-1 pb-12">
-          {currentPage === "dashboard" && (
-            <Dashboard setCurrentPage={setCurrentPage} />
-          )}
+          {(() => {
+            const requiredPermission = PAGE_PERMISSIONS[currentPage];
+            const isAuthorized = requiredPermission
+              ? hasPermission(role, requiredPermission)
+              : true;
 
-          {currentPage === "projects" && (
-            <Projects setCurrentPage={setCurrentPage} />
-          )}
+            // Route Protection: unauthorized access renders 403 Forbidden
+            if (!isAuthorized) {
+              return (
+                <ForbiddenPage
+                  onBackToDashboard={() => setCurrentPage("dashboard")}
+                  onPreviousPage={() => setCurrentPage("dashboard")}
+                />
+              );
+            }
 
-          {currentPage === "analytics" && (
-            <Analytics setCurrentPage={setCurrentPage} />
-          )}
-
-          {currentPage === "ai" && (
-            <RiskAnalysis setCurrentPage={setCurrentPage} />
-          )}
-
-          {currentPage === "alerts" && (
-            <Alerts setCurrentPage={setCurrentPage} />
-          )}
-
-          {currentPage === "reports" && (
-            <Reports setCurrentPage={setCurrentPage} />
-          )}
-
-          {currentPage === "details" && (
-            <ProjectDetails setCurrentPage={setCurrentPage} />
-          )}
+            switch (currentPage) {
+              case "dashboard":
+                return <Dashboard setCurrentPage={setCurrentPage} />;
+              case "projects":
+                return <Projects setCurrentPage={setCurrentPage} />;
+              case "analytics":
+                return <Analytics setCurrentPage={setCurrentPage} />;
+              case "ai":
+                return <RiskAnalysis setCurrentPage={setCurrentPage} />;
+              case "alerts":
+                return <Alerts setCurrentPage={setCurrentPage} />;
+              case "reports":
+                return <Reports setCurrentPage={setCurrentPage} />;
+              case "details":
+                return <ProjectDetails setCurrentPage={setCurrentPage} />;
+              case "users":
+                return <UserManagement />;
+              case "403":
+                return (
+                  <ForbiddenPage
+                    onBackToDashboard={() => setCurrentPage("dashboard")}
+                    onPreviousPage={() => setCurrentPage("dashboard")}
+                  />
+                );
+              case "404":
+              default:
+                return (
+                  <NotFoundPage
+                    onNavigateDashboard={() => setCurrentPage("dashboard")}
+                    onNavigatePrevious={() => setCurrentPage("dashboard")}
+                  />
+                );
+            }
+          })()}
         </main>
 
         {/* Official MoSPI Operations Footer */}
         <footer className="py-4 px-6 border-t border-slate-200 bg-white text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-800">MoSPI OCMS</span>
+            <span className="font-bold text-slate-800">InfraSight AI</span>
             <span className="text-slate-300">|</span>
-            <span>Ministry of Statistics and Programme Implementation</span>
+            <span>Ministry of Statistics and Programme Implementation (MoSPI)</span>
           </div>
 
           <div className="flex items-center gap-4 text-[11px]">
@@ -102,8 +316,7 @@ function App() {
         </footer>
       </div>
 
-      {/* Global Modals & Notifications */}
-      <ApiSettingsModal />
+      {/* Global Notifications */}
       {toast && (
         <Toast
           message={toast.message}

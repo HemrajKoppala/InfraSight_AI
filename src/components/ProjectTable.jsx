@@ -243,8 +243,8 @@ function ProjectTable({
         </div>
       </div>
 
-      {/* Main Production Table */}
-      <div className="overflow-x-auto max-h-[600px] scrollbar-thin">
+      {/* Desktop Table View (>= 768px) */}
+      <div className="hidden md:block overflow-x-auto max-h-[600px] scrollbar-thin">
         <table className="w-full text-xs text-left border-collapse">
           {/* Sticky Table Header */}
           <thead className="sticky top-0 z-10 bg-slate-100/90 backdrop-blur-md text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px]">
@@ -430,11 +430,10 @@ function ProjectTable({
                     <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => onSelectProject && onSelectProject(project.id)}
-                        className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg border border-slate-200/80 transition inline-flex items-center gap-1 font-semibold text-[11px] px-2.5"
-                        title="View Full Risk Intelligence & Forecasts"
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                        title="View Dossier"
                       >
-                        <span>Details</span>
-                        <ExternalLink size={12} />
+                        <ExternalLink size={14} />
                       </button>
                     </td>
                   </tr>
@@ -443,6 +442,78 @@ function ProjectTable({
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card View (< 768px) matching Section 12 */}
+      <div className="md:hidden divide-y divide-slate-100 bg-white">
+        {paginatedProjects.length === 0 ? (
+          <div className="py-8 text-center text-slate-400 text-xs">
+            No matching projects found.
+          </div>
+        ) : (
+          paginatedProjects.map((project) => {
+            const costOverrunPercent = project.originalCost
+              ? Math.round(((project.revisedCost - project.originalCost) / project.originalCost) * 100)
+              : 0;
+
+            return (
+              <div
+                key={project.id}
+                onClick={() => onSelectProject && onSelectProject(project.id)}
+                className="p-4 space-y-3 cursor-pointer hover:bg-slate-50 transition"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-mono text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200 shrink-0">
+                        {project.id}
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-medium truncate">{project.state || "National"}</span>
+                    </div>
+                    <h4 className="font-bold text-sm text-slate-900 leading-snug">
+                      {project.name}
+                    </h4>
+                    <p className="text-xs text-slate-500 truncate mt-0.5">{project.sector} &bull; {project.ministry}</p>
+                  </div>
+                  <RiskBadge risk={project.overallRisk || 0} size="small" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100 font-mono">
+                  <div>
+                    <span className="text-slate-400 text-[10px] uppercase font-sans font-semibold block">Approved Cost</span>
+                    <span className="font-medium text-slate-700">₹{(project.originalCost || 0).toLocaleString()} Cr</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-[10px] uppercase font-sans font-semibold block">Revised Cost</span>
+                    <span className="font-bold text-slate-900">₹{(project.revisedCost || project.originalCost || 0).toLocaleString()} Cr</span>
+                    {costOverrunPercent > 0 && (
+                      <span className="text-[10px] text-rose-600 font-semibold block">+{costOverrunPercent}% Overrun</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500 font-medium">Physical Progress</span>
+                    <span className="font-bold text-slate-800">{project.physicalProgress || 0}%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${
+                        (project.physicalProgress || 0) >= 80
+                          ? "bg-emerald-500"
+                          : (project.physicalProgress || 0) >= 50
+                          ? "bg-blue-500"
+                          : "bg-amber-500"
+                      }`}
+                      style={{ width: `${Math.min(100, Math.max(0, project.physicalProgress || 0))}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
       {/* Production Pagination Footer */}

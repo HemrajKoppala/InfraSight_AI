@@ -8,190 +8,295 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
-  ShieldCheck,
-  Building2,
-  ExternalLink
+  Users,
+  LogOut
 } from "lucide-react";
+import {
+  Sidebar as SidebarContainer,
+  SidebarBody,
+  SidebarLink,
+  useSidebar
+} from "./ui/sidebar";
+import { useApi } from "../context/ApiContext";
+import { useAuth } from "../context/AuthContext";
+import { hasPermission, PERMISSIONS } from "../lib/permissions";
 
-function Sidebar({ currentPage, setCurrentPage, collapsed, setCollapsed }) {
-  const menuItems = [
+export function SidebarContent({
+  currentPage,
+  setCurrentPage,
+}) {
+  const { open, setOpen } = useSidebar();
+  const { projects, alerts } = useApi();
+  const { currentUser, role, logout } = useAuth();
+
+  const unresolvedAlertsCount = alerts.filter(
+    (a) => a.status !== "Acknowledged" && a.status !== "Resolved"
+  ).length;
+
+  // The 7 official navigation menu items matching user screenshot
+  const allNavItems = [
     {
       id: "dashboard",
       label: "Dashboard",
-      icon: LayoutDashboard,
+      icon: <LayoutDashboard className="w-5 h-5" />,
+      permission: PERMISSIONS.DASHBOARD_VIEW,
       badge: null
     },
     {
       id: "projects",
       label: "Projects",
-      icon: FolderKanban,
-      badge: "Repo"
+      icon: <FolderKanban className="w-5 h-5" />,
+      permission: PERMISSIONS.PROJECTS_VIEW,
+      badge: projects?.length ? `${projects.length}` : null
     },
     {
       id: "analytics",
       label: "Analytics",
-      icon: BarChart3,
+      icon: <BarChart3 className="w-5 h-5" />,
+      permission: PERMISSIONS.ANALYTICS_VIEW,
       badge: null
     },
     {
       id: "ai",
       label: "AI Intelligence",
-      icon: Brain,
+      icon: <Brain className="w-5 h-5" />,
+      permission: PERMISSIONS.AI_VIEW,
       badge: "ML"
     },
     {
       id: "alerts",
       label: "Early Warnings",
-      icon: TriangleAlert,
-      badge: "EWS"
+      icon: <TriangleAlert className="w-5 h-5" />,
+      permission: PERMISSIONS.ALERTS_VIEW,
+      badge: unresolvedAlertsCount > 0 ? `${unresolvedAlertsCount}` : null
     },
     {
       id: "reports",
       label: "Reports",
-      icon: FileText,
+      icon: <FileText className="w-5 h-5" />,
+      permission: PERMISSIONS.REPORTS_VIEW,
       badge: "PDF"
-    }
+    },
+    {
+      id: "users",
+      label: "User Access Control",
+      icon: <Users className="w-5 h-5" />,
+      permission: PERMISSIONS.USERS_VIEW,
+      badge: "ADMIN"
+    },
   ];
 
+  // RBAC filter
+  const menuItems = allNavItems.filter((item) =>
+    hasPermission(role, item.permission)
+  );
+
+  const userInitials = currentUser?.name
+    ? currentUser.name
+        .split(" ")
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase()
+    : "ND";
+
   return (
-    <aside
-      className={`fixed left-0 top-0 h-screen bg-slate-950 text-slate-300 border-r border-slate-800 z-40 transition-all duration-300 flex flex-col justify-between select-none ${
-        collapsed ? "w-20" : "w-64"
-      }`}
-    >
-      <div>
-        {/* Top Government Emblem & Brand Header */}
-        <div className="p-4 border-b border-slate-800/90 flex items-center justify-between">
-          <div className="flex items-center gap-3 overflow-hidden">
-            {/* MoSPI Emblem Icon */}
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 via-orange-600 to-amber-700 flex items-center justify-center text-white font-black text-sm shrink-0 shadow-md shadow-orange-900/30">
-              <Building2 size={20} />
-            </div>
-
-            {!collapsed && (
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <h1 className="font-bold text-white tracking-tight text-sm font-display truncate">
-                    InfraSight <span className="text-blue-400 font-extrabold">AI</span>
-                  </h1>
+    <div className="flex flex-col justify-between h-full w-full bg-white text-slate-800">
+      {/* Top Branding & Navigation */}
+      <div className="flex flex-col w-full">
+        {/* Header / Branding */}
+        <div className="h-16 px-3 border-b border-[#D9E0E7] flex items-center justify-between w-full">
+          {open ? (
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                <div className="w-8 h-8 rounded-lg bg-white border border-slate-200/90 p-1 flex items-center justify-center shadow-2xs shrink-0">
+                  <img
+                    src="/logo-icon.png"
+                    alt="InfraTrack"
+                    className="w-full h-full object-contain"
+                  />
                 </div>
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 truncate">
-                  MoSPI Central Operations
-                </p>
+                <div className="min-w-0 flex-1 overflow-hidden animate-in fade-in duration-200">
+                  <div className="flex items-center gap-1">
+                    <span className="font-bold text-[#07133D] tracking-tight text-sm font-display truncate">
+                      InfraSight <span className="text-[#0B75B8]">AI</span>
+                    </span>
+                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 bg-blue-50 text-[#07133D] rounded border border-blue-200">
+                      MoSPI
+                    </span>
+                  </div>
+                  <p className="text-[10px] tracking-tight font-medium text-[#64748B] truncate">
+                    Infrastructure Intelligence Platform
+                  </p>
+                </div>
               </div>
-            )}
-          </div>
 
-          {/* Collapse Toggle Button */}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition border border-slate-800 shrink-0"
-            title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-            aria-label="Toggle Navigation Sidebar"
-          >
-            {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
-          </button>
-        </div>
+              {/* Desktop Collapse Toggle Button */}
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition border border-[#D9E0E7] shrink-0 hidden md:flex cursor-pointer"
+                title="Collapse Sidebar"
+                aria-label="Collapse Navigation Sidebar"
+              >
+                <ChevronLeft size={15} />
+              </button>
+            </div>
+          ) : (
+            /* Collapsed Brand Icon & Dedicated Expand Button */
+            <div className="flex flex-col items-center justify-center w-full py-1 gap-1">
+              <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="w-8 h-8 rounded-lg bg-white border border-slate-200/90 p-1 flex items-center justify-center shadow-2xs hover:border-blue-500 hover:ring-2 hover:ring-blue-100 transition cursor-pointer"
+                title="InfraSight AI - Click to expand"
+                aria-label="InfraSight AI"
+              >
+                <img
+                  src="/logo-icon.png"
+                  alt="InfraSight AI"
+                  className="w-full h-full object-contain"
+                />
+              </button>
 
-        {/* National Tricolor Subtle Stripe */}
-        <div className="h-0.5 w-full bg-gradient-to-r from-amber-500 via-white to-emerald-500 opacity-60"></div>
-
-        {/* Navigation Category */}
-        <div className="p-3">
-          {!collapsed && (
-            <div className="px-3 pt-2 pb-2">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                Central Operations
-              </span>
+              <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="w-7 h-4 rounded-md bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-600 transition border border-slate-200 flex items-center justify-center cursor-pointer shadow-2xs"
+                title="Expand Navigation Sidebar"
+                aria-label="Expand Sidebar"
+              >
+                <ChevronRight size={12} strokeWidth={2.5} />
+              </button>
             </div>
           )}
-
-          {/* Menu Items */}
-          <nav className="space-y-1 mt-1">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = currentPage === item.id;
-
-              return (
-                <div key={item.id} className="relative group">
-                  <button
-                    onClick={() => setCurrentPage(item.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
-                      isActive
-                        ? "bg-blue-600 text-white shadow-sm shadow-blue-600/30 font-bold"
-                        : "text-slate-400 hover:text-slate-100 hover:bg-slate-900"
-                    }`}
-                  >
-                    <Icon
-                      size={17}
-                      className={`shrink-0 transition-transform ${
-                        isActive ? "text-white" : "text-slate-400 group-hover:text-blue-400"
-                      }`}
-                    />
-
-                    {!collapsed && (
-                      <span className="truncate flex-1 text-left">{item.label}</span>
-                    )}
-
-                    {!collapsed && item.badge && (
-                      <span
-                        className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded tracking-wide ${
-                          isActive
-                            ? "bg-white/20 text-white"
-                            : "bg-slate-900 text-slate-400 border border-slate-800 group-hover:text-slate-300"
-                        }`}
-                      >
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-
-                  {/* Floating Tooltip in Collapsed View */}
-                  {collapsed && (
-                    <div className="fixed left-20 ml-2 px-2.5 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-md shadow-xl border border-slate-800 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap flex items-center gap-2">
-                      <span>{item.label}</span>
-                      {item.badge && (
-                        <span className="text-[9px] font-mono px-1 py-0.2 bg-slate-800 text-blue-400 rounded">
-                          {item.badge}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </nav>
         </div>
+
+        {/* Subtle Accent Line */}
+        <div className="h-[2px] w-full bg-[#0B75B8]/30"></div>
+
+        {/* Category Label (when expanded) */}
+        {open && (
+          <div className="px-4 pt-3.5 pb-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#64748B]">
+              OPERATIONS MENU
+            </span>
+          </div>
+        )}
+
+        {/* Dynamic Navigation Menu Items */}
+        <nav className="p-2 space-y-1 w-full" aria-label="Main Navigation">
+          {menuItems.map((item) => {
+            const isActive = currentPage === item.id;
+
+            return (
+              <SidebarLink
+                key={item.id}
+                isActive={isActive}
+                link={{
+                  label: item.label,
+                  href: "#",
+                  icon: item.icon,
+                  badge: item.badge
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setCurrentPage(item.id);
+                }}
+              />
+            );
+          })}
+        </nav>
       </div>
 
-      {/* Sidebar Footer: System Status */}
-      <div className="p-3 border-t border-slate-800/80 bg-slate-950/80">
-        {!collapsed ? (
-          <div className="p-3 bg-slate-900/90 rounded-lg border border-slate-800 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-200 flex items-center gap-1.5 text-[11px]">
-                <ShieldCheck size={14} className="text-emerald-400" />
-                OCMS AI Engine
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="text-[10px] text-emerald-400 font-mono">LIVE</span>
-              </span>
+      {/* User Section & Logout at Bottom */}
+      <div className="p-2 border-t border-[#D9E0E7] bg-white">
+        {open ? (
+          <div className="flex items-center justify-between p-2 rounded-lg bg-[#F5F7FA] border border-[#D9E0E7]">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-[#07133D] text-white flex items-center justify-center text-xs font-bold font-mono shrink-0 shadow-2xs">
+                {userInitials}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-[#172033] truncate">
+                  {currentUser?.name || "MoSPI Officer"}
+                </p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  <span className="text-[10px] font-mono text-[#64748B] uppercase tracking-wider truncate">
+                    {role || "Viewer"}
+                  </span>
+                </div>
+              </div>
             </div>
-            <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
-              MoSPI Infrastructure Predictive Analytics & Early Warning Matrix v2.8
-            </p>
+
+            {/* Logout Button */}
+            {logout && (
+              <button
+                type="button"
+                onClick={logout}
+                className="p-1.5 text-[#64748B] hover:text-[#C53030] hover:bg-rose-50 rounded-lg transition border border-transparent hover:border-rose-200 cursor-pointer"
+                title="Sign Out"
+                aria-label="Sign Out"
+              >
+                <LogOut size={14} />
+              </button>
+            )}
           </div>
         ) : (
-          <div className="flex justify-center" title="OCMS AI Engine: Operational">
-            <div className="w-9 h-9 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-emerald-400">
-              <ShieldCheck size={17} />
+          /* Collapsed User Avatar */
+          <div className="flex flex-col items-center gap-2 py-1">
+            <div
+              className="w-9 h-9 rounded-lg bg-[#07133D] text-white flex items-center justify-center text-xs font-bold font-mono shadow-2xs"
+              title={`${currentUser?.name || "User"} (${role || "User"})`}
+            >
+              {userInitials}
             </div>
+
+            {logout && (
+              <button
+                type="button"
+                onClick={logout}
+                className="p-1.5 text-[#64748B] hover:text-[#C53030] hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                title="Sign Out"
+                aria-label="Sign Out"
+              >
+                <LogOut size={14} />
+              </button>
+            )}
           </div>
         )}
       </div>
-    </aside>
+    </div>
   );
 }
 
-export default Sidebar;
+export default function Sidebar({
+  currentPage,
+  setCurrentPage,
+  collapsed = false,
+  setCollapsed = () => {},
+  children
+}) {
+  return (
+    <SidebarContainer
+      open={!collapsed}
+      setOpen={(val) => {
+        if (typeof val === "function") {
+          setCollapsed((prev) => !val(!prev));
+        } else {
+          setCollapsed(!val);
+        }
+      }}
+      animate={true}
+    >
+      <SidebarBody className="justify-between gap-6 border-r border-[#D9E0E7] bg-white">
+        <SidebarContent
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+        />
+      </SidebarBody>
+      {children}
+    </SidebarContainer>
+  );
+}
