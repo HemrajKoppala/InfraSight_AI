@@ -18,6 +18,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useApi } from "../../context/ApiContext";
 import FlowButton from "../../components/FlowButton";
 import { Can, PERMISSIONS } from "../../lib/permissions";
+import logoIcon from "@/assets/logo-icon.png";
 
 export function UserManagement() {
   const { users, approveUser, rejectUser, deleteUser, role } = useAuth();
@@ -68,7 +69,7 @@ export function UserManagement() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-white border border-slate-200/90 p-1.5 shadow-2xs flex items-center justify-center shrink-0">
             <img
-              src="/logo-icon.png"
+              src={logoIcon}
               alt="InfraSight AI"
               className="w-full h-full object-contain"
             />

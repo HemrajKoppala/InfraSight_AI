@@ -20,6 +20,7 @@ import {
 import { useApi } from "../context/ApiContext";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission, PERMISSIONS } from "../lib/permissions";
+import logoIcon from "../assets/logo-icon.png";
 
 export function SidebarContent({
   currentPage,
@@ -111,8 +112,8 @@ export function SidebarContent({
               <div className="flex items-center gap-2.5 overflow-hidden">
                 <div className="w-8 h-8 rounded-lg bg-white border border-slate-200/90 p-1 flex items-center justify-center shadow-2xs shrink-0">
                   <img
-                    src="/logo-icon.png"
-                    alt="InfraTrack"
+                    src={logoIcon}
+                    alt="InfraSight AI"
                     className="w-full h-full object-contain"
                   />
                 </div>
@@ -153,7 +154,7 @@ export function SidebarContent({
                 aria-label="InfraSight AI"
               >
                 <img
-                  src="/logo-icon.png"
+                  src={logoIcon}
                   alt="InfraSight AI"
                   className="w-full h-full object-contain"
                 />
