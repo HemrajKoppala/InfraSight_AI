@@ -1,10 +1,18 @@
 from fastapi import FastAPI
+from app.api.projects import router as projects_router
+
 
 app = FastAPI(
-    title="InfraSight AI API",
-    description="Predictive Infrastructure Project Monitoring & Early Warning System",
+    title="InfraSight AI",
+    description=(
+        "Predictive Infrastructure Project Monitoring "
+        "and Early Warning System"
+    ),
     version="1.0.0"
 )
+
+
+app.include_router(projects_router)
 
 
 @app.get("/")
