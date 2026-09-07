@@ -152,41 +152,41 @@ function RiskAnalysis({ setCurrentPage }) {
       </div>
 
       {/* Model Health & Telemetry Banner */}
-      <div className="gov-card p-4 bg-slate-900 text-white border-slate-800">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 divide-y md:divide-y-0 md:divide-x divide-slate-800 text-xs">
+      <div className="gov-card p-4 bg-white border border-[#D9E0E7] shadow-2xs">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 divide-y md:divide-y-0 md:divide-x divide-slate-200 text-xs">
           <div className="space-y-1">
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
               Predictive Model Engine
             </span>
-            <p className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <p className="text-sm font-bold text-[#07133D] flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
               Ensemble XGBoost + Monte Carlo
             </p>
-            <p className="text-[11px] text-slate-400">MoSPI OCMS Calibrated v2.4</p>
+            <p className="text-[11px] text-slate-500 font-medium">MoSPI OCMS Calibrated v2.4</p>
           </div>
 
           <div className="space-y-1 md:pl-4">
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
               Model Accuracy & Fit
             </span>
-            <p className="text-sm font-bold text-emerald-400 font-mono">94.2% (R² = 0.89)</p>
-            <p className="text-[11px] text-slate-400">Trained on 1,942 Central Projects</p>
+            <p className="text-sm font-bold text-emerald-700 font-mono">94.2% (R² = 0.89)</p>
+            <p className="text-[11px] text-slate-500">Trained on 1,942 Central Projects</p>
           </div>
 
           <div className="space-y-1 md:pl-4">
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
               Monte Carlo Iterations
             </span>
-            <p className="text-sm font-bold text-blue-400 font-mono">10,000 Runs / Cycle</p>
-            <p className="text-[11px] text-slate-400">Stochastic confidence interval 95%</p>
+            <p className="text-sm font-bold text-blue-700 font-mono">10,000 Runs / Cycle</p>
+            <p className="text-[11px] text-slate-500">Stochastic confidence interval 95%</p>
           </div>
 
           <div className="space-y-1 md:pl-4">
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
               Early Warning Lead Time
             </span>
-            <p className="text-sm font-bold text-amber-400 font-mono">6–9 Months Advance</p>
-            <p className="text-[11px] text-slate-400">Prior to physical milestone failure</p>
+            <p className="text-sm font-bold text-amber-700 font-mono">6–9 Months Advance</p>
+            <p className="text-[11px] text-slate-500">Prior to physical milestone failure</p>
           </div>
         </div>
       </div>
