@@ -15,6 +15,7 @@ import {
 import { useApi } from "../context/ApiContext";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission, PERMISSIONS } from "../lib/permissions";
+import logoIcon from "../assets/logo-icon.png";
 
 function Header({
   currentPage,
@@ -90,7 +91,7 @@ function Header({
             {/* Official Logo Badge */}
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white border border-slate-200/90 p-1 shadow-2xs flex items-center justify-center shrink-0">
               <img
-                src="/logo-icon.png"
+                src={logoIcon}
                 alt="InfraSight AI"
                 className="w-full h-full object-contain"
               />

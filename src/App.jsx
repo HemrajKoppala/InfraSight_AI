@@ -40,7 +40,6 @@ const VALID_AUTH_ROUTES = [
   "register",
   "pending",
   "rejected",
-  "simulator",
   "",
 ];
 

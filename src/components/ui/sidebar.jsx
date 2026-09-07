@@ -2,6 +2,7 @@ import React, { useState, createContext, useContext, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import logoIcon from "@/assets/logo-icon.png";
 
 const SidebarContext = createContext(undefined);
 
@@ -122,14 +123,14 @@ export const MobileSidebar = ({
       <div className="h-14 px-4 flex flex-row items-center justify-between bg-white text-slate-900 border-b border-slate-200 w-full fixed top-0 left-0 z-30 shadow-2xs">
         <div className="flex items-center gap-2.5">
           <img
-            src="/logo-icon.png"
-            alt="InfraTrack"
+            src={logoIcon}
+            alt="InfraSight AI"
             className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 p-0.5 object-contain shadow-2xs"
           />
           <div className="flex items-center gap-1">
-            <span className="font-bold text-sm tracking-tight text-[#07133D]">Infra<span className="text-[#0B75B8]">Track</span></span>
+            <span className="font-bold text-sm tracking-tight text-[#07133D]">InfraSight <span className="text-[#0B75B8]">AI</span></span>
             <span className="ml-1 text-[9px] font-mono px-1.5 py-0.2 bg-blue-50 text-[#07133D] rounded border border-blue-200 font-bold">
-              GOV
+              MoSPI
             </span>
           </div>
         </div>

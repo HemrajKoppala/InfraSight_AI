@@ -21,81 +21,9 @@ import {
   Lock
 } from "lucide-react";
 import FlowButton from "../components/FlowButton";
-import Interactive3DCard from "../components/Interactive3DCard";
-import { motion, AnimatePresence } from "framer-motion";
-
-// Authentic MoSPI project scenarios for the 3D interactive simulator
-const DEMO_PROJECTS = [
-  {
-    id: "INF-001",
-    name: "National Highway Corridor NH-44",
-    sector: "Road Transport & Highways",
-    ministry: "MoRTH",
-    budget: "₹14,200 Cr",
-    riskScore: 92,
-    riskLevel: "Critical Risk",
-    delayMonths: 6.5,
-    costImpact: "₹3,600 Cr",
-    delayRisk: 91,
-    costRisk: 89,
-    confidence: "94.2%",
-    primaryFactor: "14.8 ha Forest Clearance Delay in Belagavi Division",
-    factors: ["Land Acquisition (RoW)", "Contractor Idle Claims", "Environmental Clearance"]
-  },
-  {
-    id: "INF-002",
-    name: "Eastern Dedicated Freight Corridor (EDFC)",
-    sector: "Railways Infrastructure",
-    ministry: "Ministry of Railways",
-    budget: "₹81,459 Cr",
-    riskScore: 88,
-    riskLevel: "Critical Risk",
-    delayMonths: 8.0,
-    costImpact: "₹2,150 Cr",
-    delayRisk: 86,
-    costRisk: 84,
-    confidence: "91.8%",
-    primaryFactor: "Overhead Electrification Substation Milestone Lag",
-    factors: ["Import Switchgear Supply Chain", "Signaling Integration", "State SEC Review"]
-  },
-  {
-    id: "INF-004",
-    name: "Polavaram National Irrigation Dam",
-    sector: "Water Resources & Dams",
-    ministry: "Ministry of Jal Shakti",
-    budget: "₹55,548 Cr",
-    riskScore: 85,
-    riskLevel: "High Risk",
-    delayMonths: 12.0,
-    costImpact: "₹4,800 Cr",
-    delayRisk: 88,
-    costRisk: 82,
-    confidence: "88.5%",
-    primaryFactor: "River Godavari Scour Depth Geotechnical Variance",
-    factors: ["Vibro Stone Column Redesign", "CWC Technical Audit", "Spillway Milestone Lag"]
-  },
-  {
-    id: "INF-003",
-    name: "Ultra Mega Solar Park (2,000 MW)",
-    sector: "Renewable Energy & Power",
-    ministry: "Ministry of Power",
-    budget: "₹19,800 Cr",
-    riskScore: 42,
-    riskLevel: "Moderate Risk",
-    delayMonths: 3.5,
-    costImpact: "₹340 Cr",
-    delayRisk: 46,
-    costRisk: 38,
-    confidence: "86.4%",
-    primaryFactor: "400 kV Pooling Substation Testing Alignment",
-    factors: ["Grid Interconnection Lag", "Bay Equipment Commissioning", "Inverter Testing"]
-  }
-];
+import logoIcon from "../assets/logo-icon.png";
 
 function LandingPage({ onEnter }) {
-  const [activeProjectIndex, setActiveProjectIndex] = useState(0);
-  const activeProj = DEMO_PROJECTS[activeProjectIndex];
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 selection:bg-blue-600 selection:text-white font-sans relative overflow-x-hidden">
       {/* Background Subtle Gradient Grid (Light Mode) */}
@@ -114,7 +42,7 @@ function LandingPage({ onEnter }) {
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
             <div className="bg-white rounded-xl p-1.5 shadow-xs border border-slate-200 flex items-center justify-center">
               <img
-                src="/logo-icon.png"
+                src={logoIcon}
                 alt="InfraSight AI"
                 className="h-9 w-auto object-contain"
               />
@@ -140,9 +68,6 @@ function LandingPage({ onEnter }) {
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center gap-1 p-1 bg-slate-100 border border-slate-200 rounded-full text-xs font-semibold text-slate-600">
-            <a href="#simulator" className="px-4 py-2 rounded-full hover:text-blue-700 hover:bg-white transition">
-              3D Simulator
-            </a>
             <a href="#pillars" className="px-4 py-2 rounded-full hover:text-blue-700 hover:bg-white transition">
               Core Capabilities
             </a>
@@ -206,11 +131,11 @@ function LandingPage({ onEnter }) {
                 </FlowButton>
 
                 <a
-                  href="#simulator"
+                  href="#pillars"
                   className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-sm font-semibold text-slate-700 bg-white hover:bg-slate-100 hover:text-slate-900 border border-slate-300 transition duration-200 shadow-2xs cursor-pointer"
                 >
-                  <Activity size={16} className="text-blue-600" />
-                  <span>Test 3D Simulator</span>
+                  <ShieldCheck size={16} className="text-blue-600" />
+                  <span>Platform Overview</span>
                 </a>
               </div>
 
@@ -231,36 +156,11 @@ function LandingPage({ onEnter }) {
               </div>
             </div>
 
-            {/* Hero Right: 3D Interactive Telemetry Card (Light Mode) */}
-            <div className="lg:col-span-6" id="simulator">
-              {/* Tab Selector */}
-              <div className="mb-3 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-                <span className="text-xs text-slate-500 font-semibold whitespace-nowrap pl-1">
-                  Sample Asset:
-                </span>
-                {DEMO_PROJECTS.map((proj, idx) => (
-                  <button
-                    key={proj.id}
-                    onClick={() => setActiveProjectIndex(idx)}
-                    className={`text-xs px-3.5 py-1.5 rounded-lg font-semibold transition cursor-pointer whitespace-nowrap ${
-                      activeProjectIndex === idx
-                        ? "bg-blue-600 text-white shadow-xs"
-                        : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-                    }`}
-                  >
-                    {proj.name.split(" ")[0]} ({proj.id})
-                  </button>
-                ))}
-              </div>
-
-              {/* 3D Card (Light Theme) */}
-              <Interactive3DCard
-                maxTilt={8}
-                className="bg-white border border-slate-200 shadow-xl rounded-2xl"
-                glowColor="rgba(37, 99, 235, 0.15)"
-              >
-                {/* 3D Card Header */}
-                <div className="p-5 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
+            {/* Hero Right: Official Telemetry Preview Card (Clean Government Light Mode) */}
+            <div className="lg:col-span-6">
+              <div className="bg-white border border-slate-200/90 shadow-xl rounded-2xl overflow-hidden">
+                {/* Card Header */}
+                <div className="p-5 border-b border-slate-100 bg-slate-50/90 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold shadow-2xs">
                       <Brain size={18} />
@@ -268,147 +168,95 @@ function LandingPage({ onEnter }) {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-sm text-slate-900">
-                          AI Risk Intelligence
+                          National Infrastructure Intelligence
                         </span>
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-bold border border-blue-200">
-                          {activeProj.confidence} ML
+                          MoSPI LIVE
                         </span>
                       </div>
                       <span className="text-[11px] text-slate-500 font-mono">
-                        MoSPI Early Warning Matrix • {activeProj.id}
+                        Early Warning System • Central Sector Projects (₹150+ Cr)
                       </span>
                     </div>
                   </div>
 
                   <span className="flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping" />
-                    LIVE
+                    ONLINE
                   </span>
                 </div>
 
-                {/* 3D Card Content */}
+                {/* Card Content */}
                 <div className="p-6 space-y-5">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={activeProj.id}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -6 }}
-                      transition={{ duration: 0.2 }}
-                      className="space-y-4"
-                    >
-                      {/* Title & Cost */}
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold">
-                            {activeProj.ministry} • {activeProj.sector}
-                          </span>
-                          <h3 className="text-lg font-bold text-slate-900 mt-0.5">
-                            {activeProj.name}
-                          </h3>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <span className="text-[10px] text-slate-500 uppercase font-mono block">
-                            Sanctioned Cost
-                          </span>
-                          <span className="text-base font-bold font-mono text-blue-700">
-                            {activeProj.budget}
-                          </span>
-                        </div>
-                      </div>
+                  {/* High-Level KPIs */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                      <span className="text-[10px] uppercase font-mono font-bold text-slate-500 block">Monitored</span>
+                      <span className="text-xl font-extrabold text-slate-900 font-mono mt-0.5 block">1,824</span>
+                      <span className="text-[9px] text-slate-500 font-medium">Active Assets</span>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-center">
+                      <span className="text-[10px] uppercase font-mono font-bold text-amber-800 block">Cost Overrun</span>
+                      <span className="text-xl font-extrabold text-amber-900 font-mono mt-0.5 block">₹4.82L Cr</span>
+                      <span className="text-[9px] text-amber-700 font-medium">+18.4% Variance</span>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-red-50/80 border border-red-200 text-center">
+                      <span className="text-[10px] uppercase font-mono font-bold text-red-800 block">Critical Flags</span>
+                      <span className="text-xl font-extrabold text-red-900 font-mono mt-0.5 block">412</span>
+                      <span className="text-[9px] text-red-700 font-medium">EWS Triggers</span>
+                    </div>
+                  </div>
 
-                      {/* Alert Box */}
-                      <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <CircleAlert size={22} className="text-red-600 shrink-0" />
-                          <div>
-                            <span className="text-xs font-bold text-red-800 block">
-                              {activeProj.riskLevel} Flagged
-                            </span>
-                            <span className="text-[11px] text-slate-600 truncate max-w-[280px] block">
-                              {activeProj.primaryFactor}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-2xl font-extrabold font-mono text-red-700">
-                            {activeProj.riskScore}%
-                          </span>
-                          <span className="text-[9px] block text-slate-500 uppercase font-mono">
-                            Risk Index
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Dual Metric Cards */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                          <div className="flex items-center justify-between text-xs text-slate-600">
-                            <span className="flex items-center gap-1.5 font-bold">
-                              <IndianRupee size={14} className="text-amber-600" />
-                              Cost Escalation
-                            </span>
-                            <span className="font-mono text-amber-700 font-bold">{activeProj.costRisk}%</span>
-                          </div>
-                          <p className="text-xl font-extrabold text-slate-900 font-mono mt-1.5">
-                            {activeProj.costImpact}
-                          </p>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block">
-                            Above sanctioned budget
-                          </span>
-                        </div>
-
-                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                          <div className="flex items-center justify-between text-xs text-slate-600">
-                            <span className="flex items-center gap-1.5 font-bold">
-                              <Clock3 size={14} className="text-rose-600" />
-                              Schedule Overrun
-                            </span>
-                            <span className="font-mono text-rose-700 font-bold">{activeProj.delayRisk}%</span>
-                          </div>
-                          <p className="text-xl font-extrabold text-slate-900 font-mono mt-1.5">
-                            +{activeProj.delayMonths} Mo
-                          </p>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block">
-                            Lag beyond original COD
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Factors */}
-                      <div className="pt-2">
-                        <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider block mb-2">
-                          Top Attributed Root Drivers
+                  {/* Active Flagged Asset Preview */}
+                  <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold">
+                          Ministry of Road Transport & Highways • MoRTH
                         </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {activeProj.factors.map((f, i) => (
-                            <span
-                              key={i}
-                              className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 font-medium"
-                            >
-                              {f}
-                            </span>
-                          ))}
-                        </div>
+                        <h3 className="text-sm font-bold text-slate-900 mt-0.5">
+                          National Highway Corridor NH-44 (Package-IV)
+                        </h3>
                       </div>
-                    </motion.div>
-                  </AnimatePresence>
+                      <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-red-100 text-red-800 border border-red-200 shrink-0">
+                        Critical Risk (92%)
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 flex items-center gap-2.5 text-xs text-red-800">
+                      <CircleAlert size={16} className="text-red-600 shrink-0" />
+                      <span className="truncate">
+                        Primary Bottleneck: 14.8 ha Forest Clearance & RoW pending in Belagavi Division
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-1 text-xs">
+                      <div className="flex items-center justify-between p-2 rounded bg-white border border-slate-200">
+                        <span className="text-slate-500">Projected Lag</span>
+                        <span className="font-mono font-bold text-rose-700">+6.5 Months</span>
+                      </div>
+                      <div className="flex items-center justify-between p-2 rounded bg-white border border-slate-200">
+                        <span className="text-slate-500">Cost Impact</span>
+                        <span className="font-mono font-bold text-amber-700">+₹3,600 Cr</span>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Card Bottom Link */}
-                  <div className="pt-3 flex items-center justify-between border-t border-slate-100 text-xs">
+                  <div className="pt-2 flex items-center justify-between border-t border-slate-100 text-xs">
                     <span className="text-slate-500 font-mono text-[11px]">
-                      Simulated MoSPI OCMS Pipeline
+                      Integrated with MoSPI OCMS & PM GatiShakti
                     </span>
                     <button
                       onClick={onEnter}
                       className="text-blue-700 hover:text-blue-800 font-bold inline-flex items-center gap-1 transition cursor-pointer"
                     >
-                      <span>Open in Operations</span>
+                      <span>Access Central Operations</span>
                       <ChevronRight size={14} />
                     </button>
                   </div>
                 </div>
-              </Interactive3DCard>
+              </div>
             </div>
           </div>
         </div>
@@ -571,7 +419,7 @@ function LandingPage({ onEnter }) {
             <div className="space-y-2 max-w-xl">
               <div className="flex items-center justify-center md:justify-start gap-2.5 mb-1">
                 <div className="bg-white rounded-lg p-1 shadow-xs">
-                  <img src="/logo-icon.png" alt="InfraSight AI" className="h-6 w-auto object-contain" />
+                  <img src={logoIcon} alt="InfraSight AI" className="h-6 w-auto object-contain" />
                 </div>
                 <span className="font-bold text-white text-base">InfraSight AI Operations</span>
               </div>
@@ -603,7 +451,7 @@ function LandingPage({ onEnter }) {
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-3">
               <div className="bg-white border border-slate-200 rounded-lg p-1.5 shadow-2xs">
-                <img src="/logo-icon.png" alt="InfraSight AI" className="h-7 w-auto object-contain" />
+                <img src={logoIcon} alt="InfraSight AI" className="h-7 w-auto object-contain" />
               </div>
               <div>
                 <span className="font-bold text-slate-900 text-sm">InfraSight <span className="text-blue-700">AI</span></span>
