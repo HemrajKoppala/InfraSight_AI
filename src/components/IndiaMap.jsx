@@ -16,64 +16,111 @@ import { REAL_INDIA_STATES } from "../data/indiaSvgData";
 
 // Continuous yellow -> orange -> red sequential color interpolation
 // Exact scale: 0: #fdf6d8, 46: #f6c17a, 91: #ef8f6b, 137: #df5b52, 182: #a52520
-const COLOR_STOPS = [
-  { val: 0, r: 253, g: 246, b: 216 },
-  { val: 46, r: 246, g: 193, b: 122 },
-  { val: 91, r: 239, g: 143, b: 107 },
-  { val: 137, r: 223, g: 91, b: 82 },
-  { val: 182, r: 165, g: 37, b: 32 },
-];
-
-export function getChoroplethColor(count) {
+// Continuous government blue sequential color interpolation for choropleth
+export function getChoroplethColor(count, maxCount = 1) {
   const num = typeof count === "number" ? count : 0;
-  const clamped = Math.max(0, Math.min(182, num));
-
-  for (let i = 0; i < COLOR_STOPS.length - 1; i++) {
-    const s1 = COLOR_STOPS[i];
-    const s2 = COLOR_STOPS[i + 1];
-    if (clamped >= s1.val && clamped <= s2.val) {
-      const factor = (clamped - s1.val) / (s2.val - s1.val);
-      const r = Math.round(s1.r + factor * (s2.r - s1.r));
-      const g = Math.round(s1.g + factor * (s2.g - s1.g));
-      const b = Math.round(s1.b + factor * (s2.b - s1.b));
-      return `rgb(${r}, ${g}, ${b})`;
-    }
-  }
-  return "#a52520";
+  if (num === 0) return "#f8fafc"; // Neutral light slate for states with 0 projects in DB
+  const upper = Math.max(maxCount, 1);
+  const ratio = Math.min(1, num / upper);
+  if (ratio <= 0.33) return "#93c5fd";
+  if (ratio <= 0.66) return "#3b82f6";
+  return "#1e3a8a";
 }
 
 export default function IndiaMap({
-  selectedStateCode = "OD",
+  selectedStateCode = null,
   onSelectState,
   dataMap = null,
   showDetailPanel = true,
-  monthYear = "July, 2026",
+  monthYear = "September, 2026",
 }) {
-  const [internalSelectedCode, setInternalSelectedCode] = useState(selectedStateCode);
+  // Find first active state code from dataMap if no explicit selectedStateCode
+  const defaultCode = useMemo(() => {
+    if (selectedStateCode) return selectedStateCode;
+    if (dataMap && Object.keys(dataMap).length > 0) {
+      const first = Object.values(dataMap)[0];
+      return first.code || Object.keys(dataMap)[0].toUpperCase();
+    }
+    return "KA";
+  }, [selectedStateCode, dataMap]);
+
+  const [internalSelectedCode, setInternalSelectedCode] = useState(defaultCode);
   const [hoveredState, setHoveredState] = useState(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
-  const activeCode = selectedStateCode || internalSelectedCode;
+  const activeCode = selectedStateCode || internalSelectedCode || defaultCode;
 
-  // Build indexed map lookup
+  // Build indexed map lookup strictly from real database records (all others 0)
   const statesLookup = useMemo(() => {
     const lookup = {};
     STATES_DATA.forEach((s) => {
-      lookup[s.code] = s;
-      lookup[s.name.toLowerCase()] = s;
+      // 100% clean baseline without mock numbers
+      const base = {
+        code: s.code,
+        name: s.name,
+        count: 0,
+        projectCount: 0,
+        originalCost: 0,
+        revisedCost: 0,
+        expenditure: 0,
+        completedThisMonth: 0,
+        newlyAdded: 0,
+        delayedCount: 0,
+        criticalRiskCount: 0,
+        riskLevel: "Normal",
+      };
+      lookup[s.code] = base;
+      lookup[s.name.toLowerCase()] = base;
     });
+
     if (dataMap) {
       Object.keys(dataMap).forEach((key) => {
-        lookup[key] = { ...lookup[key], ...dataMap[key] };
+        const item = dataMap[key];
+        const count = item.totalProjects || item.projectCount || item.count || 0;
+        const orig = item.costOriginal || item.originalCost || 0;
+        const rev = item.costRevised || item.revisedCost || 0;
+        const exp = item.expenditure || 0;
+
+        const current = lookup[key] || lookup[item.name?.toLowerCase()] || {};
+        const merged = {
+          ...current,
+          name: item.name || current.name || key,
+          code: item.code || current.code || key.toUpperCase(),
+          count,
+          projectCount: count,
+          originalCost: orig,
+          revisedCost: rev,
+          expenditure: exp,
+          completedThisMonth: 0,
+          newlyAdded: 0,
+        };
+
+        lookup[key] = merged;
+        if (merged.code) lookup[merged.code] = merged;
+        if (merged.name) lookup[merged.name.toLowerCase()] = merged;
       });
     }
     return lookup;
   }, [dataMap]);
 
-  const activeStateData =
-    statesLookup[activeCode] ||
-    statesLookup[activeCode?.toLowerCase()] ||
-    STATES_DATA[0];
+  const maxCount = useMemo(() => {
+    let max = 1;
+    Object.values(statesLookup).forEach((s) => {
+      if ((s.count || 0) > max) max = s.count;
+    });
+    return max;
+  }, [statesLookup]);
+
+  const activeStateData = useMemo(() => {
+    if (activeCode && (statesLookup[activeCode] || statesLookup[activeCode.toLowerCase()])) {
+      return statesLookup[activeCode] || statesLookup[activeCode.toLowerCase()];
+    }
+    if (dataMap && Object.keys(dataMap).length > 0) {
+      const firstKey = Object.keys(dataMap)[0];
+      if (statesLookup[firstKey]) return statesLookup[firstKey];
+    }
+    return statesLookup["KA"] || Object.values(statesLookup)[0];
+  }, [activeCode, statesLookup, dataMap]);
 
   const handleStateClick = (stateInfo) => {
     setInternalSelectedCode(stateInfo.code);
@@ -263,7 +310,7 @@ export default function IndiaMap({
                 statesLookup[sp.name.toLowerCase()] ||
                 {};
               const count = stateData.count || stateData.projectCount || 0;
-              const fillColor = getChoroplethColor(count);
+              const fillColor = getChoroplethColor(count, maxCount);
               const isSelected = activeCode === sp.code || activeStateData.name === sp.name;
               const isHovered = hoveredState?.code === sp.code;
 
@@ -272,8 +319,8 @@ export default function IndiaMap({
                   <path
                     d={sp.d}
                     fill={fillColor}
-                    stroke={isHovered ? "#000000" : isSelected ? "#0a1e33" : "#1c1c1c"}
-                    strokeWidth={isSelected ? "2.0" : isHovered ? "1.6" : "0.85"}
+                    stroke={isHovered ? "#000000" : isSelected ? "#0a1e33" : "#94a3b8"}
+                    strokeWidth={isSelected ? "2.0" : isHovered ? "1.6" : "0.75"}
                     strokeLinejoin="round"
                     strokeLinecap="round"
                     className="cursor-pointer transition-colors duration-150"
@@ -315,7 +362,7 @@ export default function IndiaMap({
                       y={sp.centroid[1]}
                       fontSize="8"
                       fontWeight={isSelected ? "bold" : "600"}
-                      fill={count > 90 ? "#ffffff" : "#111827"}
+                      fill={count > 0 ? "#1e3a8a" : "#64748b"}
                       textAnchor="middle"
                       pointerEvents="none"
                       className="select-none"
@@ -341,7 +388,7 @@ export default function IndiaMap({
               <div className="bg-[#0a1e33] text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-md flex items-center gap-1.5 border border-slate-700 whitespace-nowrap">
                 <span>{hoveredState.name}:</span>
                 <span className="font-mono text-amber-300 font-bold">
-                  {hoveredState.count} projects
+                  {hoveredState.count} {hoveredState.count === 1 ? "project" : "projects"}
                 </span>
               </div>
             </div>
@@ -358,21 +405,24 @@ export default function IndiaMap({
             <div className="flex items-center gap-2">
               {/* Vertical Color Scale Bar */}
               <div
-                className="w-3.5 h-36 rounded-xs border border-slate-300"
+                className="w-3.5 h-28 rounded-xs border border-slate-300"
                 style={{
                   background:
-                    "linear-gradient(to bottom, #a52520 0%, #df5b52 25%, #ef8f6b 50%, #f6c17a 75%, #fdf6d8 100%)",
+                    "linear-gradient(to bottom, #1e3a8a 0%, #3b82f6 50%, #93c5fd 100%)",
                 }}
               />
 
               {/* Tick Labels along the bar */}
-              <div className="h-36 flex flex-col justify-between text-[9px] font-mono font-bold text-slate-700 text-right">
-                <span>182</span>
-                <span>137</span>
-                <span>91</span>
-                <span>46</span>
-                <span>0</span>
+              <div className="h-28 flex flex-col justify-between text-[9px] font-mono font-bold text-slate-700 text-right">
+                <span>{maxCount}</span>
+                <span>{Math.max(1, Math.round(maxCount / 2))}</span>
+                <span>1</span>
               </div>
+            </div>
+
+            <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center gap-1.5 text-[9px] text-slate-500">
+              <span className="w-2.5 h-2.5 bg-slate-100 border border-slate-300 rounded-2xs inline-block shrink-0" />
+              <span>0 (None)</span>
             </div>
           </div>
         </div>

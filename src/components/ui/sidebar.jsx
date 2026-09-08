@@ -105,9 +105,10 @@ export const MobileSidebar = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, setOpen]);
 
-  // Prevent body scroll when mobile drawer is open
+  // Prevent body scroll only on mobile screens when drawer is open
   useEffect(() => {
-    if (open) {
+    const isMobile = window.innerWidth < 768;
+    if (open && isMobile) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
