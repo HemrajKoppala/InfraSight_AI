@@ -9,6 +9,9 @@ import RiskAnalysis from "./pages/RiskAnalysis";
 import Alerts from "./pages/Alerts";
 import Reports from "./pages/Reports";
 import ProjectDetails from "./pages/ProjectDetails";
+import MapPage from "./pages/MapPage";
+import DataStatus from "./pages/DataStatus";
+import ModelPerformance from "./pages/ModelPerformance";
 import UserManagement from "./pages/admin/UserManagement";
 import ForbiddenPage from "./pages/ForbiddenPage";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -27,6 +30,9 @@ const VALID_PAGES = [
   "analytics",
   "ai",
   "alerts",
+  "map",
+  "datastatus",
+  "models",
   "reports",
   "details",
   "users",
@@ -40,7 +46,6 @@ const VALID_AUTH_ROUTES = [
   "register",
   "pending",
   "rejected",
-  "simulator",
   "",
 ];
 
@@ -275,6 +280,18 @@ function App() {
                 return <RiskAnalysis setCurrentPage={setCurrentPage} />;
               case "alerts":
                 return <Alerts setCurrentPage={setCurrentPage} />;
+              case "map":
+                return (
+                  <MapPage
+                    onNavigateDetails={(id) => {
+                      setCurrentPage("details");
+                    }}
+                  />
+                );
+              case "datastatus":
+                return <DataStatus />;
+              case "models":
+                return <ModelPerformance />;
               case "reports":
                 return <Reports setCurrentPage={setCurrentPage} />;
               case "details":

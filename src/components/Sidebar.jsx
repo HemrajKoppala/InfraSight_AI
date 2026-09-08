@@ -9,7 +9,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Users,
-  LogOut
+  LogOut,
+  MapPin,
+  Database,
+  Cpu
 } from "lucide-react";
 import {
   Sidebar as SidebarContainer,
@@ -20,6 +23,7 @@ import {
 import { useApi } from "../context/ApiContext";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission, PERMISSIONS } from "../lib/permissions";
+import logoIcon from "../assets/logo-icon.png";
 
 export function SidebarContent({
   currentPage,
@@ -33,7 +37,7 @@ export function SidebarContent({
     (a) => a.status !== "Acknowledged" && a.status !== "Resolved"
   ).length;
 
-  // The 7 official navigation menu items matching user screenshot
+  // Official Government-grade navigation items matching core pages specification
   const allNavItems = [
     {
       id: "dashboard",
@@ -50,18 +54,11 @@ export function SidebarContent({
       badge: projects?.length ? `${projects.length}` : null
     },
     {
-      id: "analytics",
-      label: "Analytics",
-      icon: <BarChart3 className="w-5 h-5" />,
-      permission: PERMISSIONS.ANALYTICS_VIEW,
-      badge: null
-    },
-    {
       id: "ai",
-      label: "AI Intelligence",
+      label: "Risk Intelligence",
       icon: <Brain className="w-5 h-5" />,
       permission: PERMISSIONS.AI_VIEW,
-      badge: "ML"
+      badge: "SHAP"
     },
     {
       id: "alerts",
@@ -71,8 +68,36 @@ export function SidebarContent({
       badge: unresolvedAlertsCount > 0 ? `${unresolvedAlertsCount}` : null
     },
     {
+      id: "map",
+      label: "Geographic Map",
+      icon: <MapPin className="w-5 h-5" />,
+      permission: PERMISSIONS.MAP_VIEW,
+      badge: "GIS"
+    },
+    {
+      id: "analytics",
+      label: "Portfolio Analytics",
+      icon: <BarChart3 className="w-5 h-5" />,
+      permission: PERMISSIONS.ANALYTICS_VIEW,
+      badge: null
+    },
+    {
+      id: "datastatus",
+      label: "Data Ingestion Status",
+      icon: <Database className="w-5 h-5" />,
+      permission: PERMISSIONS.DATASTATUS_VIEW,
+      badge: "IPMIS"
+    },
+    {
+      id: "models",
+      label: "Model Performance",
+      icon: <Cpu className="w-5 h-5" />,
+      permission: PERMISSIONS.MODELS_VIEW,
+      badge: "ML"
+    },
+    {
       id: "reports",
-      label: "Reports",
+      label: "Official Reports",
       icon: <FileText className="w-5 h-5" />,
       permission: PERMISSIONS.REPORTS_VIEW,
       badge: "PDF"
@@ -111,8 +136,8 @@ export function SidebarContent({
               <div className="flex items-center gap-2.5 overflow-hidden">
                 <div className="w-8 h-8 rounded-lg bg-white border border-slate-200/90 p-1 flex items-center justify-center shadow-2xs shrink-0">
                   <img
-                    src="/logo-icon.png"
-                    alt="InfraTrack"
+                    src={logoIcon}
+                    alt="InfraSight AI"
                     className="w-full h-full object-contain"
                   />
                 </div>
@@ -153,7 +178,7 @@ export function SidebarContent({
                 aria-label="InfraSight AI"
               >
                 <img
-                  src="/logo-icon.png"
+                  src={logoIcon}
                   alt="InfraSight AI"
                   className="w-full h-full object-contain"
                 />

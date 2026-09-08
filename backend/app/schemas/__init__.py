@@ -1,0 +1,1 @@
+"""InfraSight AI Schemas Package"""

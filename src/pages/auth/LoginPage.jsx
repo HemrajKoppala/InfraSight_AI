@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import FlowButton from "../../components/FlowButton";
+import logoIcon from "@/assets/logo-icon.png";
 
 export function LoginPage({ onNavigateRegister, onShowPending, onShowRejected, onReturnLanding }) {
   const { login } = useAuth();
@@ -78,7 +79,7 @@ export function LoginPage({ onNavigateRegister, onShowPending, onShowRejected, o
               {/* Official Logo Banner */}
               <div className="inline-flex items-center gap-3 bg-white p-2 rounded-xl shadow-md border border-white/20">
                 <img
-                  src="/logo-icon.png"
+                  src={logoIcon}
                   alt="InfraSight AI"
                   className="h-9 w-auto object-contain"
                 />
