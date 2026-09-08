@@ -59,7 +59,7 @@ InfraSight_AI/
 │   │   ├── permissions.js   # RBAC definition and route permission maps
 │   │   └── utils.js         # Tailwind class merging and formatters
 │   ├── pages/
-│   │   ├── LandingPage.jsx  # Public portal overview & simulator
+│   │   ├── LandingPage.jsx  # Public portal overview & national infrastructure metrics
 │   │   ├── Dashboard.jsx    # Central Operations Dashboard
 │   │   ├── RiskAnalysis.jsx # AI Intelligence & ML Risk Engine
 │   │   ├── admin/           # Administrative user management
