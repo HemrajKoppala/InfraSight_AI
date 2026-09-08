@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   ArrowLeft,
   Building2,
@@ -15,7 +15,8 @@ import {
   ChevronRight,
   ShieldCheck,
   MapPin,
-  Briefcase
+  Briefcase,
+  Info
 } from "lucide-react";
 import {
   LineChart,
@@ -27,8 +28,8 @@ import {
   ResponsiveContainer,
   Legend
 } from "recharts";
-import RiskBadge from "../components/RiskBadge";
 import { useApi } from "../context/ApiContext";
+import { getProjectDetails, transformProject } from "../api";
 
 function ProjectDetails({ setCurrentPage }) {
   const {
@@ -36,55 +37,82 @@ function ProjectDetails({ setCurrentPage }) {
     selectedProjectId,
     setSelectedProjectId,
     selectedProject,
-    alerts
   } = useApi();
 
-  const [activeTab, setActiveTab] = useState("overview"); // 'overview' | 'ai' | 'milestones' | 'expenditure' | 'warnings'
+  const [activeTab, setActiveTab] = useState("overview"); // 'overview' | 'ai' | 'delays' | 'history' | 'warnings'
+  const [detailsData, setDetailsData] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [detailsError, setDetailsError] = useState(null);
 
-  const project = useMemo(() => {
-    return selectedProject || projects[0] || {};
+  const fallbackProject = useMemo(() => {
+    return selectedProject || projects[0] || null;
   }, [selectedProject, projects]);
 
-  // Project-specific alerts
-  const projectAlerts = useMemo(() => {
-    return alerts.filter((a) => a.projectId === project.id);
-  }, [alerts, project.id]);
+  const activeId = selectedProjectId || fallbackProject?.id;
 
-  // Expenditure timeline data for this project
-  const expenditureData = useMemo(() => {
-    const orig = Number(project.originalCost) || 10000;
-    const rev = Number(project.revisedCost || orig);
-    const exp = Number(project.expenditure) || orig * 0.6;
+  // Fetch full details from FastAPI endpoint: GET /api/projects/{id}/details
+  useEffect(() => {
+    if (!activeId) return;
 
-    return [
-      { quarter: "Q1 2024", planned: Math.round(orig * 0.15), actual: Math.round(orig * 0.14) },
-      { quarter: "Q2 2024", planned: Math.round(orig * 0.32), actual: Math.round(orig * 0.28) },
-      { quarter: "Q3 2024", planned: Math.round(orig * 0.5), actual: Math.round(orig * 0.42) },
-      { quarter: "Q4 2024", planned: Math.round(orig * 0.68), actual: Math.round(exp * 0.85) },
-      { quarter: "Q1 2025", planned: Math.round(orig * 0.85), actual: Math.round(exp) },
-      { quarter: "Q2 2025 (Est)", planned: Math.round(orig * 1.0), actual: null, forecast: Math.round(exp + (rev - exp) * 0.4) },
-      { quarter: "Q3 2025 (Est)", planned: Math.round(orig * 1.0), actual: null, forecast: Math.round(rev) }
-    ];
-  }, [project]);
+    let isMounted = true;
+    setLoadingDetails(true);
+    setDetailsError(null);
 
-  // Project Milestones
-  const milestones = useMemo(() => {
-    if (project.milestones && project.milestones.length > 0) {
-      return project.milestones;
-    }
-    return [
-      { id: "M1", name: "Detailed Project Report (DPR) Approval & Land Survey", target: "Jan 2024", status: "Completed", delayMonths: 0 },
-      { id: "M2", name: "Environmental Clearance & Forest Stage-1 Diversion", target: "May 2024", status: "Completed", delayMonths: 1.5 },
-      { id: "M3", name: "Right of Way (RoW) Land Acquisition (80% package)", target: "Nov 2024", status: "Delayed", delayMonths: 5.0 },
-      { id: "M4", name: "Substructure Civil Works & Foundation Laying", target: "Apr 2025", status: "Ongoing", delayMonths: 3.5 },
-      { id: "M5", name: "Superstructure Erection & Mechanical Integration", target: "Oct 2025", status: "Pending", delayMonths: 6.0 },
-      { id: "M6", name: "Final Statutory Testing & Commercial Commissioning", target: "Mar 2026", status: "Pending", delayMonths: 7.5 }
-    ];
-  }, [project]);
+    getProjectDetails(activeId)
+      .then((res) => {
+        if (isMounted && res) {
+          setDetailsData({
+            project: transformProject(res.project),
+            metrics: res.metrics || null,
+            history: Array.isArray(res.history) ? res.history : [],
+          });
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          console.info("[ProjectDetails] Live details fetch:", err.message);
+          setDetailsError(err.message);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setLoadingDetails(false);
+      });
 
-  const overrunAmount = (Number(project.revisedCost) || Number(project.originalCost)) - Number(project.originalCost);
-  const overrunPercent = project.originalCost ? ((overrunAmount / project.originalCost) * 100).toFixed(1) : 0;
-  const financialExecutionPercent = project.revisedCost ? (((Number(project.expenditure) || 0) / project.revisedCost) * 100).toFixed(1) : 0;
+    return () => {
+      isMounted = false;
+    };
+  }, [activeId]);
+
+  const project = detailsData?.project || fallbackProject;
+  const metrics = detailsData?.metrics || {
+    cost_escalation_percent: project?.costOverrunPercent || 0,
+    progress_gap: project ? Math.abs((project.financial_progress || 0) - (project.physical_progress || 0)) : 0,
+    duration_used_percent: project?.planned_duration_months && project?.elapsed_duration_months
+      ? Number(((project.elapsed_duration_months / project.planned_duration_months) * 100).toFixed(1))
+      : 0,
+  };
+  const history = detailsData?.history || [];
+
+  if (!project) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto text-center py-20">
+        <h2 className="text-lg font-bold text-slate-800">No Project Selected</h2>
+        <p className="text-xs text-slate-500 mt-1">Please select a project from the repository.</p>
+        <button
+          onClick={() => setCurrentPage("projects")}
+          className="mt-4 px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded"
+        >
+          Go to Projects
+        </button>
+      </div>
+    );
+  }
+
+  const overrunAmount = project.costOverrunAmount || (project.current_cost - project.original_cost);
+  const overrunPercent = metrics.cost_escalation_percent ?? project.costOverrunPercent ?? 0;
+  const financialExecutionPercent = project.current_cost > 0
+    ? (((Number(project.expenditure) || 0) / project.current_cost) * 100).toFixed(1)
+    : 0;
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -107,7 +135,7 @@ function ProjectDetails({ setCurrentPage }) {
           >
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.id} - {p.name.substring(0, 28)}...
+                {p.id} - {p.name.substring(0, 32)}
               </option>
             ))}
           </select>
@@ -128,7 +156,7 @@ function ProjectDetails({ setCurrentPage }) {
               <span className="text-slate-300">|</span>
               <span className="text-xs text-slate-500 flex items-center gap-1">
                 <MapPin size={12} className="text-slate-400" />
-                {project.state || "National Alignment"}
+                {project.state || "National"}
               </span>
             </div>
 
@@ -136,23 +164,28 @@ function ProjectDetails({ setCurrentPage }) {
               {project.name}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Nodal Ministry: <strong className="text-slate-700">{project.ministry}</strong> • Implementing Agency: <strong className="text-slate-700">{project.agency || "NHAI / Central CPWD"}</strong>
+              Nodal Ministry: <strong className="text-slate-700">{project.ministry}</strong>
             </p>
           </div>
 
           <div className="flex items-center gap-3 self-start md:self-auto">
-            <RiskBadge risk={project.overallRisk || 0} size="normal" />
+            <div className="text-right pr-3 border-r border-slate-200">
+              <span className="text-[10px] text-slate-400 font-semibold uppercase block">Cost Escalation</span>
+              <span className={`inline-block font-mono text-xs font-bold ${overrunPercent > 0 ? "text-rose-600" : "text-emerald-700"}`}>
+                {overrunPercent > 0 ? `+${overrunPercent}%` : "0%"}
+              </span>
+            </div>
 
-            <div className="text-right pl-3 border-l border-slate-200">
-              <span className="text-[10px] text-slate-400 font-semibold uppercase block">Milestone Status</span>
+            <div className="text-right">
+              <span className="text-[10px] text-slate-400 font-semibold uppercase block">Schedule Status</span>
               <span
                 className={`inline-block text-xs font-bold px-2 py-0.5 rounded border ${
-                  project.status === "Delayed"
+                  (project.total_delay_months || project.timeOverrunMonths || 0) > 0
                     ? "bg-rose-50 text-rose-700 border-rose-200"
                     : "bg-emerald-50 text-emerald-700 border-emerald-200"
                 }`}
               >
-                {project.status || "Ongoing"}
+                {project.status || "On Track"}
               </span>
             </div>
           </div>
@@ -163,14 +196,14 @@ function ProjectDetails({ setCurrentPage }) {
           <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/80">
             <span className="text-[10px] text-slate-500 font-semibold block">Approved Outlay</span>
             <span className="text-base font-bold font-mono text-slate-900">
-              ₹{(project.originalCost || 0).toLocaleString()} Cr
+              ₹{(project.original_cost ?? project.originalCost ?? 0).toLocaleString()} Cr
             </span>
           </div>
 
           <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/80">
-            <span className="text-[10px] text-slate-500 font-semibold block">Revised / Anticipated Cost</span>
+            <span className="text-[10px] text-slate-500 font-semibold block">Current Cost</span>
             <span className="text-base font-bold font-mono text-slate-900">
-              ₹{(project.revisedCost || project.originalCost || 0).toLocaleString()} Cr
+              ₹{(project.current_cost ?? project.revisedCost ?? 0).toLocaleString()} Cr
             </span>
             {overrunAmount > 0 && (
               <span className="text-[10px] text-rose-600 font-bold block mt-0.5">
@@ -185,7 +218,7 @@ function ProjectDetails({ setCurrentPage }) {
               ₹{(project.expenditure || 0).toLocaleString()} Cr
             </span>
             <span className="text-[10px] text-emerald-700 font-semibold block mt-0.5">
-              {financialExecutionPercent}% of revised budget
+              {financialExecutionPercent}% of current outlay
             </span>
           </div>
 
@@ -193,12 +226,12 @@ function ProjectDetails({ setCurrentPage }) {
             <span className="text-[10px] text-slate-500 font-semibold block">Physical Progress</span>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-base font-bold font-mono text-blue-700">
-                {project.physicalProgress || 0}%
+                {project.physical_progress ?? project.physicalProgress ?? 0}%
               </span>
               <div className="flex-1 bg-slate-200 h-2 rounded-full overflow-hidden">
                 <div
                   className="bg-blue-600 h-full rounded-full"
-                  style={{ width: `${project.physicalProgress || 0}%` }}
+                  style={{ width: `${project.physical_progress ?? project.physicalProgress ?? 0}%` }}
                 />
               </div>
             </div>
@@ -210,10 +243,10 @@ function ProjectDetails({ setCurrentPage }) {
       <div className="border-b border-slate-200 flex items-center gap-2 overflow-x-auto text-xs font-bold">
         {[
           { id: "overview", label: "Overview & Contract Details" },
-          { id: "ai", label: "AI Risk Diagnosis & Drivers" },
-          { id: "milestones", label: "Milestone Implementation Schedule" },
-          { id: "expenditure", label: "Quarterly Expenditure Curve" },
-          { id: "warnings", label: `Active Early Warnings (${projectAlerts.length})` }
+          { id: "delays", label: "Delay Breakdown & Timeline" },
+          { id: "history", label: "Historical Progression" },
+          { id: "ai", label: "AI Risk Diagnosis" },
+          { id: "warnings", label: "Early Warnings" }
         ].map((tab) => (
           <button
             key={tab.id}
@@ -234,34 +267,56 @@ function ProjectDetails({ setCurrentPage }) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 gov-card p-5 space-y-4">
             <h3 className="font-bold text-slate-900 text-sm pb-2 border-b border-slate-100">
-              Contract & Execution Particulars
+              Official Project Particulars (SQLite Database)
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>
-                <span className="text-slate-500 block">Prime EPC Contractor:</span>
-                <span className="font-bold text-slate-800">{project.contractor || "L&T Infrastructure Ltd."}</span>
+                <span className="text-slate-500 block">Project Code:</span>
+                <span className="font-bold font-mono text-slate-800">{project.project_id || project.id}</span>
               </div>
               <div>
-                <span className="text-slate-500 block">Sanction Date:</span>
-                <span className="font-bold font-mono text-slate-800">{project.sanctionDate || "15 Jan 2023"}</span>
+                <span className="text-slate-500 block">Nodal Ministry:</span>
+                <span className="font-bold text-slate-800">{project.ministry}</span>
               </div>
               <div>
-                <span className="text-slate-500 block">Original Target Completion:</span>
-                <span className="font-bold font-mono text-slate-800">{project.targetDate || "31 Dec 2025"}</span>
+                <span className="text-slate-500 block">Sector Classification:</span>
+                <span className="font-bold text-slate-800">{project.sector}</span>
               </div>
               <div>
-                <span className="text-slate-500 block">Anticipated Completion Date:</span>
-                <span className="font-bold font-mono text-rose-600">{project.revisedTargetDate || "30 Sep 2026"}</span>
+                <span className="text-slate-500 block">Jurisdiction State:</span>
+                <span className="font-bold text-slate-800">{project.state}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Planned Duration:</span>
+                <span className="font-bold font-mono text-slate-800">
+                  {project.planned_duration_months ? `${project.planned_duration_months} Months` : "Data unavailable"}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Elapsed Duration:</span>
+                <span className="font-bold font-mono text-slate-800">
+                  {project.elapsed_duration_months ? `${project.elapsed_duration_months} Months` : "Data unavailable"}
+                </span>
               </div>
             </div>
 
             <div className="pt-2 border-t border-slate-100 space-y-1">
-              <span className="font-bold text-slate-800 block text-xs">Project Scope & Description:</span>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                {project.description ||
-                  `Development of 4/6-lane economic corridor including grade-separated interchanges, major bridges, and smart highway sensor infrastructure under the MoSPI central sector framework.`}
-              </p>
+              <span className="font-bold text-slate-800 block text-xs">Computed Metrics:</span>
+              <div className="grid grid-cols-3 gap-3 text-center pt-1 font-mono">
+                <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-sans">Cost Escalation</span>
+                  <span className="font-bold text-slate-900">{metrics.cost_escalation_percent}%</span>
+                </div>
+                <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-sans">Progress Gap</span>
+                  <span className="font-bold text-slate-900">{metrics.progress_gap}%</span>
+                </div>
+                <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-sans">Duration Elapsed</span>
+                  <span className="font-bold text-slate-900">{metrics.duration_used_percent}%</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -272,203 +327,149 @@ function ProjectDetails({ setCurrentPage }) {
             <div className="space-y-2 text-slate-600">
               <div className="flex justify-between">
                 <span>State / UT:</span>
-                <strong className="text-slate-800">{project.state || "Karnataka & Maharashtra"}</strong>
+                <strong className="text-slate-800">{project.state}</strong>
               </div>
               <div className="flex justify-between">
-                <span>Implementing Division:</span>
-                <strong className="text-slate-800">{project.sector} Division</strong>
+                <span>Sector:</span>
+                <strong className="text-slate-800">{project.sector}</strong>
               </div>
               <div className="flex justify-between">
-                <span>Monitoring Cadre:</span>
-                <strong className="text-slate-800">MoSPI Central Sector Desk</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tab 2: AI Risk Diagnosis & Drivers */}
-      {activeTab === "ai" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="gov-card p-5 space-y-4">
-            <h3 className="font-bold text-slate-900 text-sm pb-2 border-b border-slate-100 flex items-center gap-2">
-              <Brain size={16} className="text-blue-600" />
-              Machine Learning Telemetry
-            </h3>
-
-            <div className="space-y-3 text-xs">
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <span className="text-slate-500 block text-[11px]">Ensemble Model Classification</span>
-                <span className="text-base font-bold text-slate-900">
-                  {project.overallRisk >= 75 ? "Severe Delay Risk" : "Moderate Risk"}
+                <span>Coordinates:</span>
+                <span className="text-slate-500">
+                  {project.latitude && project.longitude
+                    ? `${project.latitude}, ${project.longitude}`
+                    : "Location unavailable"}
                 </span>
-                <p className="text-[10px] text-slate-400 mt-0.5">Confidence Level: 94.2% (XGBoost)</p>
               </div>
-
-              <div className="space-y-1.5">
-                <span className="font-semibold text-slate-700">Projected Milestone Slippage</span>
-                <div className="text-lg font-bold font-mono text-rose-600">
-                  +{project.aiPredictions?.predictedDelayMonths || (project.status === "Delayed" ? 8 : 3)} Months
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <span className="font-semibold text-slate-700">Projected Additional Cost Overrun</span>
-                <div className="text-lg font-bold font-mono text-amber-600">
-                  +₹{project.aiPredictions?.predictedCostOverrun || Math.round(project.originalCost * 0.15)} Cr
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="lg:col-span-2 gov-card p-5 space-y-4">
-            <h3 className="font-bold text-slate-900 text-sm pb-2 border-b border-slate-100">
-              SHAP Root-Cause Attribution for {project.id}
-            </h3>
-
-            <div className="space-y-3 text-xs">
-              {[
-                { factor: "Right of Way (RoW) Clearance Backlog", weight: 38, impact: "Delayed by 5.2 months" },
-                { factor: "Material Price Escalation Index", weight: 26, impact: "Cost increased by ₹840 Cr" },
-                { factor: "Contractor Machinery Mobilization Lag", weight: 18, impact: "Idle equipment claims pending" },
-                { factor: "Statutory Environmental NOCs", weight: 12, impact: "Stage-2 forest clearance pending" },
-                { factor: "Monsoon Disruption Factor", weight: 6, impact: "Seasonal work stoppage" }
-              ].map((f, i) => (
-                <div key={i} className="p-3 bg-slate-50 rounded-lg border border-slate-200/80 space-y-1">
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-slate-800">{f.factor}</span>
-                    <span className="font-mono font-bold text-blue-700 text-[11px]">{f.weight}% Attribution</span>
-                  </div>
-                  <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-blue-600 h-full rounded-full" style={{ width: `${f.weight * 2.3}%` }} />
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-1">{f.impact}</p>
-                </div>
-              ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* Tab 3: Milestone Implementation Schedule */}
-      {activeTab === "milestones" && (
-        <div className="gov-card overflow-hidden">
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="font-bold text-slate-900 text-sm">
-              Key Project Implementation Milestones
-            </h3>
-            <span className="text-xs text-slate-500">
-              {milestones.filter((m) => m.status === "Completed").length} of {milestones.length} Milestones Achieved
-            </span>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead>
-                <tr className="gov-table-header">
-                  <th className="py-3 px-4">Milestone Identifier & Scope</th>
-                  <th className="py-3 px-4">Target Date</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-right">Delay (Months)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {milestones.map((m) => (
-                  <tr key={m.id} className="hover:bg-slate-50 transition">
-                    <td className="py-3 px-4 font-semibold text-slate-900">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded">
-                          {m.id}
-                        </span>
-                        <span>{m.name}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 font-mono text-slate-600">{m.target}</td>
-                    <td className="py-3 px-4 text-center">
-                      <span
-                        className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded border ${
-                          m.status === "Completed"
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : m.status === "Delayed"
-                            ? "bg-rose-50 text-rose-700 border-rose-200"
-                            : "bg-blue-50 text-blue-700 border-blue-200"
-                        }`}
-                      >
-                        {m.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono font-bold">
-                      {m.delayMonths > 0 ? (
-                        <span className="text-rose-600">+{m.delayMonths} mo</span>
-                      ) : (
-                        <span className="text-slate-400">0 mo</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Tab 4: Quarterly Expenditure Curve */}
-      {activeTab === "expenditure" && (
+      {/* Tab 2: Delay Breakdown & Timeline */}
+      {activeTab === "delays" && (
         <div className="gov-card p-5 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div>
               <h3 className="font-bold text-slate-900 text-sm">
-                Quarterly Capital Disbursement & Forecast (₹ Cr)
+                Delay Factor Breakdown (FastAPI Database Model)
               </h3>
               <p className="text-xs text-slate-500">
-                Planned capital allocation curve against actual recognized bills and AI predictive forecast
+                Granular delay attributes logged in central SQLite database for project {project.id}
               </p>
             </div>
           </div>
 
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={expenditureData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="quarter" tick={{ fontSize: 11, fill: "#64748b" }} />
-                <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickFormatter={(v) => `₹${v} Cr`} />
-                <Tooltip
-                  formatter={(val) => [`₹${Number(val).toLocaleString()} Cr`]}
-                  contentStyle={{ backgroundColor: "#fff", borderColor: "#e2e8f0", fontSize: "12px", borderRadius: "8px" }}
-                />
-                <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
-                <Line type="monotone" dataKey="planned" name="Approved Plan" stroke="#64748b" strokeDasharray="4 4" strokeWidth={2} />
-                <Line type="monotone" dataKey="actual" name="Actual Expenditure" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="forecast" name="AI Projected Spend" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <span className="text-slate-500 block text-[11px]">Milestone Delay</span>
+              <div className="text-xl font-extrabold font-mono text-slate-900 mt-1">
+                {project.milestone_delay_months || 0} mos
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">Milestone schedule lag</p>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <span className="text-slate-500 block text-[11px]">Procurement Delay</span>
+              <div className="text-xl font-extrabold font-mono text-slate-900 mt-1">
+                {project.procurement_delay_months || 0} mos
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">Tender & vendor finalization</p>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <span className="text-slate-500 block text-[11px]">Land Acquisition Delay</span>
+              <div className="text-xl font-extrabold font-mono text-slate-900 mt-1">
+                {project.land_acquisition_delay_months || 0} mos
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">Right-of-way clearance</p>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <span className="text-slate-500 block text-[11px]">Approval Delay</span>
+              <div className="text-xl font-extrabold font-mono text-slate-900 mt-1">
+                {project.approval_delay_months || 0} mos
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">Statutory & forest clearances</p>
+            </div>
           </div>
+        </div>
+      )}
+
+      {/* Tab 3: Historical Progression */}
+      {activeTab === "history" && (
+        <div className="gov-card p-5 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">
+                Project Historical Progression
+              </h3>
+              <p className="text-xs text-slate-500">
+                Monthly historical progression records retrieved from /api/projects/{project.id}/history
+              </p>
+            </div>
+          </div>
+
+          {history.length === 0 ? (
+            <div className="p-12 text-center space-y-2">
+              <Clock size={32} className="mx-auto text-slate-300" />
+              <h4 className="font-bold text-slate-700 text-sm">Historical data unavailable</h4>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                No monthly audit records have been submitted to the history table for this project yet.
+              </p>
+            </div>
+          ) : (
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={history.map((h) => ({
+                    month: `Month ${h.month}`,
+                    currentCost: h.current_cost,
+                    expenditure: h.expenditure,
+                    physicalProgress: h.physical_progress,
+                  }))}
+                  margin={{ top: 10, right: 20, left: 10, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} />
+                  <YAxis tick={{ fontSize: 11, fill: "#64748b" }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "#fff", borderColor: "#e2e8f0", fontSize: "12px", borderRadius: "8px" }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
+                  <Line type="monotone" dataKey="currentCost" name="Current Cost (₹ Cr)" stroke="#f59e0b" strokeWidth={2} />
+                  <Line type="monotone" dataKey="expenditure" name="Expenditure (₹ Cr)" stroke="#10b981" strokeWidth={2} />
+                  <Line type="monotone" dataKey="physicalProgress" name="Physical Progress (%)" stroke="#3b82f6" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 4: AI Risk Diagnosis */}
+      {activeTab === "ai" && (
+        <div className="gov-card p-8 text-center space-y-3">
+          <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center mx-auto">
+            <Brain size={24} />
+          </div>
+          <h3 className="font-bold text-slate-800 text-base">Risk intelligence unavailable</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+            Predictive ML models for project risk diagnosis and SHAP explanation drivers are under active development by the ML team. This view will automatically populate with live risk metrics once the backend ML endpoints are deployed.
+          </p>
         </div>
       )}
 
       {/* Tab 5: Active Early Warnings */}
       {activeTab === "warnings" && (
-        <div className="space-y-4">
-          {projectAlerts.length === 0 ? (
-            <div className="gov-card p-10 text-center space-y-2">
-              <CheckCircle2 size={32} className="mx-auto text-emerald-500" />
-              <h4 className="font-bold text-slate-800 text-sm">No Active Early Warnings</h4>
-              <p className="text-xs text-slate-500">No critical alerts currently flagged for project {project.id}.</p>
-            </div>
-          ) : (
-            projectAlerts.map((a) => (
-              <div key={a.id} className="gov-card p-4 border-l-4 border-l-rose-600 space-y-2 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                    {a.severity}
-                  </span>
-                  <span className="font-mono text-slate-400">{a.timestamp}</span>
-                </div>
-                <h4 className="font-bold text-slate-900 text-sm">{a.title}</h4>
-                <p className="text-slate-600 leading-relaxed">{a.description}</p>
-              </div>
-            ))
-          )}
+        <div className="gov-card p-8 text-center space-y-3">
+          <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-500 border border-slate-200 flex items-center justify-center mx-auto">
+            <AlertTriangle size={24} />
+          </div>
+          <h3 className="font-bold text-slate-800 text-base">Alerts are currently unavailable.</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+            The early warning alerts engine is integrated directly with the backend intelligence layer. When active warning triggers are logged for project {project.id}, they will appear here.
+          </p>
         </div>
       )}
     </div>

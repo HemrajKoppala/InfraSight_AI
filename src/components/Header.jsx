@@ -15,14 +15,7 @@ import { useApi } from "../context/ApiContext";
 import { useAuth } from "../context/AuthContext";
 import logoIcon from "../assets/logo-icon.png";
 
-const NAV_ITEMS = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "projects", label: "Projects" },
-  { id: "ai", label: "Risk Intelligence" },
-  { id: "alerts", label: "Alerts" },
-  { id: "map", label: "Map" },
-  { id: "datastatus", label: "Data Status" },
-];
+
 
 function Header({
   currentPage,
@@ -51,7 +44,7 @@ function Header({
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-2xs">
       {/* Top Ministry & Platform Identity Bar */}
-      <div className="px-4 sm:px-6 py-2.5 flex items-center justify-between border-b border-slate-100 gap-4">
+      <div className="px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           {onToggleMobileMenu && (
             <button
@@ -236,36 +229,7 @@ function Header({
         </div>
       </div>
 
-      {/* Primary Navigation Row: Dashboard | Projects | Risk Intelligence | Alerts | Map | Data Status */}
-      <div className="px-4 sm:px-6 bg-slate-50/90 flex items-center justify-between overflow-x-auto no-scrollbar text-xs">
-        <nav className="flex items-center gap-1 sm:gap-2 py-1">
-          {NAV_ITEMS.map((item) => {
-            const isActive =
-              currentPage === item.id ||
-              (item.id === "projects" && currentPage === "details");
 
-            return (
-              <button
-                key={item.id}
-                onClick={() => onSelectPage && onSelectPage(item.id)}
-                className={`px-3 py-1.5 font-semibold text-xs rounded-xs transition-colors whitespace-nowrap cursor-pointer ${
-                  isActive
-                    ? "bg-[#0b2240] text-white shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
-                }`}
-              >
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
-
-        <div className="hidden md:flex items-center gap-2 text-[11px] text-slate-500 font-mono shrink-0">
-          <span>Review Cycle: July 2026</span>
-          <span className="text-slate-300">|</span>
-          <span className="text-emerald-700 font-semibold">&bull; Central Registry Live</span>
-        </div>
-      </div>
     </header>
   );
 }

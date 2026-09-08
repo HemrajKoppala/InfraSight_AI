@@ -37,7 +37,7 @@ function Projects({ setCurrentPage }) {
   const [ministryFilter, setMinistryFilter] = useState("ALL");
   const [riskFilter, setRiskFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [sortField, setSortField] = useState("overallRisk");
+  const [sortField, setSortField] = useState("timeOverrunMonths");
   const [sortDirection, setSortDirection] = useState("desc");
   const [currentPageNum, setCurrentPageNum] = useState(1);
   const [pageSize, setPageSize] = useState(8);
@@ -58,24 +58,16 @@ function Projects({ setCurrentPage }) {
         !searchTerm ||
         p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.contractor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.ministry?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.state?.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchSector = sectorFilter === "ALL" || p.sector === sectorFilter;
       const matchMinistry = ministryFilter === "ALL" || p.ministry === ministryFilter;
+      const matchStatus = statusFilter === "ALL" || p.status === statusFilter;
 
-      let matchRisk = true;
-      if (riskFilter === "CRITICAL") matchRisk = (p.overallRisk || 0) >= 80;
-      else if (riskFilter === "HIGH") matchRisk = (p.overallRisk || 0) >= 65 && (p.overallRisk || 0) < 80;
-      else if (riskFilter === "MEDIUM") matchRisk = (p.overallRisk || 0) >= 40 && (p.overallRisk || 0) < 65;
-      else if (riskFilter === "LOW") matchRisk = (p.overallRisk || 0) < 40;
-
-      let matchStatus = true;
-      if (statusFilter !== "ALL") matchStatus = p.status === statusFilter;
-
-      return matchSearch && matchSector && matchMinistry && matchRisk && matchStatus;
+      return matchSearch && matchSector && matchMinistry && matchStatus;
     });
-  }, [projects, searchTerm, sectorFilter, ministryFilter, riskFilter, statusFilter]);
+  }, [projects, searchTerm, sectorFilter, ministryFilter, statusFilter]);
 
   // Sorted list
   const sortedProjects = useMemo(() => {
@@ -238,20 +230,18 @@ function Projects({ setCurrentPage }) {
             ))}
           </select>
 
-          {/* Risk Filter */}
+          {/* Status Filter */}
           <select
-            value={riskFilter}
+            value={statusFilter}
             onChange={(e) => {
-              setRiskFilter(e.target.value);
+              setStatusFilter(e.target.value);
               setCurrentPageNum(1);
             }}
             className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:border-blue-600"
           >
-            <option value="ALL">All AI Risk Levels</option>
-            <option value="CRITICAL">Critical (≥80%)</option>
-            <option value="HIGH">High Risk (65–79%)</option>
-            <option value="MEDIUM">Moderate (40–64%)</option>
-            <option value="LOW">Low Risk (&lt;40%)</option>
+            <option value="ALL">All Statuses</option>
+            <option value="Delayed">Delayed</option>
+            <option value="On Track">On Track</option>
           </select>
         </div>
 
@@ -279,16 +269,20 @@ function Projects({ setCurrentPage }) {
       ) : errorProjects ? (
         <EmptyState
           type="error"
-          title="Error Loading Project Data"
+          title="Unable to load data from the backend."
           description={errorProjects}
           onRetry={refreshAll}
         />
       ) : paginatedProjects.length === 0 ? (
         <div className="gov-card p-12 text-center space-y-3">
           <AlertTriangle size={32} className="mx-auto text-amber-500" />
-          <h3 className="font-bold text-slate-800 text-sm">No Matching Projects Found</h3>
+          <h3 className="font-bold text-slate-800 text-sm">
+            {projects.length === 0 ? "No data available." : "No Matching Projects Found"}
+          </h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            No projects matched your active search query or filter combination.
+            {projects.length === 0
+              ? "The central project database contains no active records."
+              : "No projects matched your active search query or filter combination."}
           </p>
           <button
             onClick={resetFilters}
@@ -350,11 +344,11 @@ function Projects({ setCurrentPage }) {
                     </div>
                   </th>
                   <th
-                    onClick={() => handleSort("overallRisk")}
+                    onClick={() => handleSort("timeOverrunMonths")}
                     className="py-3 px-4 text-center cursor-pointer hover:text-slate-900 transition"
                   >
                     <div className="flex items-center justify-center gap-1.5">
-                      <span>AI Risk</span>
+                      <span>Schedule Delay</span>
                       <ArrowUpDown size={11} className="opacity-60" />
                     </div>
                   </th>
@@ -364,9 +358,7 @@ function Projects({ setCurrentPage }) {
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
                 {paginatedProjects.map((project) => {
-                  const overrunPercent = project.originalCost
-                    ? Math.round(((project.revisedCost - project.originalCost) / project.originalCost) * 100)
-                    : 0;
+                  const overrunPercent = project.costOverrunPercent || 0;
 
                   return (
                     <tr
@@ -385,12 +377,6 @@ function Projects({ setCurrentPage }) {
                             </p>
                             <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
                               <span>{project.state || "National"}</span>
-                              {project.contractor && (
-                                <>
-                                  <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                  <span className="truncate max-w-[130px]">{project.contractor}</span>
-                                </>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -432,7 +418,15 @@ function Projects({ setCurrentPage }) {
                       </td>
 
                       <td className="py-3 px-4 text-center">
-                        <RiskBadge risk={project.overallRisk || 0} size="small" />
+                        {(project.timeOverrunMonths || 0) > 0 ? (
+                          <span className="inline-block text-[11px] font-bold font-mono px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                            +{project.timeOverrunMonths} mos
+                          </span>
+                        ) : (
+                          <span className="inline-block text-[11px] font-medium font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            On Schedule
+                          </span>
+                        )}
                       </td>
 
                       <td className="py-3 px-4 text-center">
@@ -445,7 +439,7 @@ function Projects({ setCurrentPage }) {
                               : "bg-blue-50 text-blue-700 border-blue-200"
                           }`}
                         >
-                          {project.status || "Ongoing"}
+                          {project.status || "On Track"}
                         </span>
                       </td>
 
@@ -478,7 +472,17 @@ function Projects({ setCurrentPage }) {
                 <span className="font-mono text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200">
                   {project.id}
                 </span>
-                <RiskBadge risk={project.overallRisk || 0} size="small" />
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                    (project.timeOverrunMonths || 0) > 0
+                      ? "bg-amber-50 text-amber-800 border-amber-200"
+                      : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                  }`}
+                >
+                  {(project.timeOverrunMonths || 0) > 0
+                    ? `+${project.timeOverrunMonths} mos delay`
+                    : "On Schedule"}
+                </span>
               </div>
 
               <div>

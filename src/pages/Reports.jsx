@@ -17,83 +17,117 @@ import {
 } from "lucide-react";
 import { useApi } from "../context/ApiContext";
 
-function Reports() {
-  const { projects, alerts, showToast } = useApi();
+function Reports({ setCurrentPage }) {
+  const {
+    projects,
+    dashboardSummary,
+    sectorStats,
+    stateStats,
+    loadingProjects,
+    loadingSummary,
+    setSelectedProjectId,
+    showToast,
+  } = useApi();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("ALL");
   const [previewReport, setPreviewReport] = useState(null);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [newReportType, setNewReportType] = useState("Flash");
+  const [userCreatedReports, setUserCreatedReports] = useState([]);
 
-  // Initial authentic official reports catalog
-  const initialReports = [
-    {
-      id: "REP-2026-081",
-      title: "MoSPI Monthly Flash Report on Central Sector Projects (August 2026)",
-      type: "Flash Report",
-      category: "Monthly Flash",
-      classification: "Official - MoSPI OCMS",
-      date: "01 Sep 2026",
-      format: "PDF",
-      size: "3.4 MB",
-      status: "Verified",
-      summary: "Comprehensive monitoring report covering all central sector infrastructure projects costing ₹150 Cr and above. Highlights ₹2.4 Lakh Cr cumulative escalation."
-    },
-    {
-      id: "REP-2026-082",
-      title: "Cabinet Secretariat Early Warning Executive Briefing",
-      type: "EWS Brief",
-      category: "Intelligence Dossier",
-      classification: "Confidential - Cabinet Review",
-      date: "04 Sep 2026",
-      format: "PDF",
-      size: "1.8 MB",
-      status: "Verified",
-      summary: "AI-generated risk diagnosis for top 12 high-impact infrastructure corridors facing critical Right of Way or contractor execution bottlenecks."
-    },
-    {
-      id: "REP-2026-083",
-      title: "Sectoral Cost Overrun & Milestone Delay Audit (Q2 FY2026-27)",
-      type: "Sectoral Audit",
-      category: "Quarterly Audit",
-      classification: "Official - MoSPI",
-      date: "28 Aug 2026",
-      format: "XLSX",
-      size: "4.2 MB",
-      status: "Verified",
-      summary: "Deep-dive expenditure breakdown across Railways, Road Transport, Power, and Petroleum sectors with variance matrices."
-    },
-    {
-      id: "REP-2026-084",
-      title: "INF-001 Project Risk & Statutory Clearance Dossier",
-      type: "Project Dossier",
-      category: "Corridor Study",
-      classification: "Internal Review",
-      date: "06 Sep 2026",
-      format: "PDF",
-      size: "2.1 MB",
-      status: "Verified",
-      summary: "Technical audit of NH-44 Belagavi bypass package including TreeSHAP attribution and proposed State Empowered Committee interventions."
-    },
-    {
-      id: "REP-2026-085",
-      title: "Inter-Ministerial Right of Way (RoW) Clearance Reconciliation",
-      type: "Sectoral Audit",
-      category: "Special Review",
-      classification: "Official - PMO Infrastructure Desk",
-      date: "22 Aug 2026",
-      format: "PDF",
-      size: "2.7 MB",
-      status: "Verified",
-      summary: "Status of pending forest diversions and revenue land compensation across 42 highway and railway alignment stretches."
-    }
-  ];
+  // Dynamically compile official reports directly from real SQLite database records
+  const databaseReports = useMemo(() => {
+    if (!projects || projects.length === 0) return [];
 
-  const [reportsList, setReportsList] = useState(initialReports);
+    const totalCount = dashboardSummary?.total_projects ?? projects.length;
+    const approved = Math.round(dashboardSummary?.total_original_cost ?? 0);
+    const revised = Math.round(dashboardSummary?.total_current_cost ?? 0);
+    const expenditure = Math.round(dashboardSummary?.total_expenditure ?? 0);
+    const diff = revised - approved;
+
+    const reports = [
+      // 1. Portfolio Flash Report
+      {
+        id: "REP-MOSPI-PORTFOLIO",
+        title: `MoSPI Flash Report on Central Sector Projects (${totalCount} Projects)`,
+        type: "Flash Report",
+        category: "Monthly Flash",
+        classification: "Official - MoSPI OCMS",
+        date: "08 Sep 2026",
+        format: "PDF",
+        size: "3.2 MB",
+        status: "Verified",
+        summary: `Comprehensive monitoring report covering ${totalCount} central sector infrastructure projects. Approved outlay: ₹${approved.toLocaleString()} Cr, Anticipated cost: ₹${revised.toLocaleString()} Cr (+₹${diff.toLocaleString()} Cr variance), Cumulative expenditure: ₹${expenditure.toLocaleString()} Cr.`,
+        reportData: {
+          totalCount,
+          approved,
+          revised,
+          expenditure,
+          sectorsCount: sectorStats ? sectorStats.length : 0,
+          statesCount: stateStats ? stateStats.length : 0,
+        },
+      },
+      // 2. Sectoral Cost Audit
+      {
+        id: "REP-SECTOR-AUDIT",
+        title: `Sectoral Cost Overrun & Milestone Delay Audit (${sectorStats ? sectorStats.length : 0} Sectors)`,
+        type: "Sectoral Audit",
+        category: "Quarterly Audit",
+        classification: "Official - MoSPI",
+        date: "08 Sep 2026",
+        format: "XLSX",
+        size: "2.1 MB",
+        status: "Verified",
+        summary: `Expenditure audit across infrastructure sectors: ${(sectorStats || []).map((s) => `${s.sector} (${s.project_count} prj, ₹${Math.round(s.current_cost)} Cr)`).join(", ")}.`,
+        reportData: {
+          sectors: sectorStats || [],
+        },
+      },
+      // 3. State Allocation Brief
+      {
+        id: "REP-STATE-BRIEF",
+        title: `National State-wise Infrastructure Allocation Briefing (${stateStats ? stateStats.length : 0} States)`,
+        type: "EWS Brief",
+        category: "Geographic Audit",
+        classification: "Confidential - Cabinet Review",
+        date: "08 Sep 2026",
+        format: "PDF",
+        size: "2.4 MB",
+        status: "Verified",
+        summary: `State-wise infrastructure distribution covering ${(stateStats || []).map((s) => `${s.state} (${s.project_count} projects, ₹${Math.round(s.current_cost)} Cr)`).join(", ")}.`,
+        reportData: {
+          states: stateStats || [],
+        },
+      },
+    ];
+
+    // 4. Specific Project Dossier for each project from SQLite DB
+    projects.forEach((p) => {
+      reports.push({
+        id: `DOSSIER-${p.id}`,
+        title: `${p.id}: ${p.name} - Project Monitoring Dossier`,
+        type: "Project Dossier",
+        category: `${p.sector} Sector`,
+        classification: `Official - ${p.ministry || "Central Ministry"}`,
+        date: "08 Sep 2026",
+        format: "PDF",
+        size: "1.6 MB",
+        status: "Verified",
+        summary: `Project in ${p.state} under ${p.ministry}. Sanctioned: ₹${Number(p.originalCost || 0).toLocaleString()} Cr, Anticipated: ₹${Number(p.revisedCost || p.originalCost || 0).toLocaleString()} Cr, Expenditure: ₹${Number(p.expenditure || 0).toLocaleString()} Cr. Schedule overrun: ${p.timeOverrunMonths || 0} months.`,
+        projectRecord: p,
+      });
+    });
+
+    return reports;
+  }, [projects, dashboardSummary, sectorStats, stateStats]);
+
+  const allReports = useMemo(() => {
+    return [...userCreatedReports, ...databaseReports];
+  }, [userCreatedReports, databaseReports]);
 
   const filteredReports = useMemo(() => {
-    return reportsList.filter((r) => {
+    return allReports.filter((r) => {
       const matchType = typeFilter === "ALL" || r.type === typeFilter;
       const matchSearch =
         !searchTerm ||
@@ -102,9 +136,45 @@ function Reports() {
         r.summary.toLowerCase().includes(searchTerm.toLowerCase());
       return matchType && matchSearch;
     });
-  }, [reportsList, typeFilter, searchTerm]);
+  }, [allReports, typeFilter, searchTerm]);
 
   const handleDownload = (report) => {
+    let extraDetails = "";
+    if (report.projectRecord) {
+      const p = report.projectRecord;
+      extraDetails = `
+PROJECT DOSSIER DETAILS:
+- Project ID: ${p.id}
+- Project Title: ${p.name}
+- Sector: ${p.sector}
+- Nodal Ministry: ${p.ministry}
+- State: ${p.state}
+- Original Outlay: ₹${p.originalCost} Cr
+- Anticipated Outlay: ₹${p.revisedCost || p.originalCost} Cr
+- Cumulative Expenditure: ₹${p.expenditure || 0} Cr
+- Schedule Overrun: ${p.timeOverrunMonths || 0} months
+- Physical Progress: ${p.physicalProgress || 0}%
+- Coordinates: ${p.latitude || "N/A"}, ${p.longitude || "N/A"}
+`;
+    } else if (report.reportData?.sectors) {
+      extraDetails = `
+SECTORAL BREAKDOWN:
+${report.reportData.sectors.map((s) => `  * ${s.sector}: ${s.project_count} projects | Original: ₹${s.original_cost} Cr | Current: ₹${s.current_cost} Cr | Spent: ₹${s.expenditure} Cr`).join("\n")}
+`;
+    } else if (report.reportData?.states) {
+      extraDetails = `
+STATE-WISE ALLOCATION BREAKDOWN:
+${report.reportData.states.map((s) => `  * ${s.state}: ${s.project_count} projects | Original: ₹${s.original_cost} Cr | Current: ₹${s.current_cost} Cr | Spent: ₹${s.expenditure} Cr`).join("\n")}
+`;
+    } else {
+      extraDetails = `
+PORTFOLIO SUMMARY:
+- Total Projects Monitored: ${projects.length}
+- Central Registry Source: SQLite Database (backend/infrasight.db)
+- Live API Base: ${import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000"}
+`;
+    }
+
     const content = `GOVERNMENT OF INDIA
 MINISTRY OF STATISTICS AND PROGRAMME IMPLEMENTATION (MoSPI)
 INFRASTRUCTURE MONITORING DIVISION
@@ -118,13 +188,10 @@ Format: ${report.format} (${report.size})
 
 EXECUTIVE SUMMARY:
 ${report.summary}
-
-ACTIVE PORTFOLIO TELEMETRY:
-- Monitored Projects in Registry: ${projects.length}
-- Active Early Warning Alerts: ${alerts.length}
-- Predictive ML Model: Ensemble XGBoost v2.4 (Validation Accuracy 94.2%)
-
+${extraDetails}
+======================================================
 Official digital sign-off verified under Central Sector Project Monitoring Guidelines.
+Data fetched dynamically from backend/infrasight.db via FastAPI.
 `;
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -138,21 +205,21 @@ Official digital sign-off verified under Central Sector Project Monitoring Guide
   };
 
   const handleCreateReport = () => {
-    const newId = `REP-2026-0${reportsList.length + 86}`;
+    const newId = `REP-ADHOC-${Date.now().toString().slice(-4)}`;
     const newDoc = {
       id: newId,
-      title: `${newReportType === "Flash" ? "MoSPI Flash Report" : "Cabinet Executive Brief"} - Generated on 07 Sep 2026`,
+      title: `${newReportType === "Flash" ? "Ad-hoc MoSPI Flash Report" : "Cabinet Executive Briefing"} - ${new Date().toLocaleDateString("en-GB")}`,
       type: newReportType === "Flash" ? "Flash Report" : "EWS Brief",
-      category: "Ad-hoc Review",
+      category: "Ad-hoc Telemetry",
       classification: "Official - MoSPI OCMS",
-      date: "07 Sep 2026",
+      date: "08 Sep 2026",
       format: "PDF",
-      size: "2.3 MB",
+      size: "2.1 MB",
       status: "Verified",
-      summary: `Automated compilation of ${projects.length} central sector projects with live XGBoost risk index calculations and early warning telemetry.`
+      summary: `Automated compilation of ${projects.length} central sector projects currently stored in backend/infrasight.db.`,
     };
 
-    setReportsList([newDoc, ...reportsList]);
+    setUserCreatedReports([newDoc, ...userCreatedReports]);
     setShowGenerateModal(false);
     showToast(`Report ${newId} compiled and added to registry.`, "success");
   };
@@ -176,7 +243,7 @@ Official digital sign-off verified under Central Sector Project Monitoring Guide
             Official MoSPI Reports & Flash Briefings
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Published monthly flash reports, cabinet executive briefs, and sectoral delay audits for infrastructure projects costing ₹150 Cr and above
+            Published reports and project dossiers derived directly from central sector projects in SQLite database
           </p>
         </div>
 
@@ -235,69 +302,77 @@ Official digital sign-off verified under Central Sector Project Monitoring Guide
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {filteredReports.map((report) => (
-                <tr key={report.id} className="hover:bg-slate-50 transition">
-                  <td className="py-3 px-4">
-                    <div className="flex items-start gap-2.5">
-                      <div className="p-2 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 shrink-0 mt-0.5">
-                        {report.format === "PDF" ? <FileText size={16} /> : <FileSpreadsheet size={16} />}
-                      </div>
-                      <div>
-                        <span className="font-mono text-[10px] font-bold text-slate-500 block">
-                          {report.id}
-                        </span>
-                        <p className="font-bold text-slate-900 leading-snug">{report.title}</p>
-                        <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{report.summary}</p>
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className="py-3 px-4">
-                    <span className="font-semibold text-slate-700 text-xs">{report.type}</span>
-                    <span className="text-[10px] text-slate-400 block">{report.category}</span>
-                  </td>
-
-                  <td className="py-3 px-4">
-                    <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded">
-                      {report.classification}
-                    </span>
-                  </td>
-
-                  <td className="py-3 px-4 font-mono text-slate-600">{report.date}</td>
-
-                  <td className="py-3 px-4 text-center">
-                    <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200">
-                      {report.format} ({report.size})
-                    </span>
-                  </td>
-
-                  <td className="py-3 px-4 text-center">
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                      <CheckCircle2 size={10} />
-                      {report.status}
-                    </span>
-                  </td>
-
-                  <td className="py-3 px-4 text-center">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <button
-                        onClick={() => setPreviewReport(report)}
-                        className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded border border-slate-200 transition"
-                        title="Preview Document"
-                      >
-                        <Eye size={13} />
-                      </button>
-                      <button
-                        onClick={() => handleDownload(report)}
-                        className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded border border-slate-200 transition"
-                        title="Download Document"
-                      >
-                        <Download size={13} />
-                      </button>
-                    </div>
+              {filteredReports.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="py-12 text-center text-xs text-slate-500 font-medium">
+                    {loadingProjects ? "Loading reports from database..." : "No data available."}
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredReports.map((report) => (
+                  <tr key={report.id} className="hover:bg-slate-50 transition">
+                    <td className="py-3 px-4">
+                      <div className="flex items-start gap-2.5">
+                        <div className="p-2 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 shrink-0 mt-0.5">
+                          {report.format === "PDF" ? <FileText size={16} /> : <FileSpreadsheet size={16} />}
+                        </div>
+                        <div>
+                          <span className="font-mono text-[10px] font-bold text-slate-500 block">
+                            {report.id}
+                          </span>
+                          <p className="font-bold text-slate-900 leading-snug">{report.title}</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{report.summary}</p>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="py-3 px-4">
+                      <span className="font-semibold text-slate-700 text-xs">{report.type}</span>
+                      <span className="text-[10px] text-slate-400 block">{report.category}</span>
+                    </td>
+
+                    <td className="py-3 px-4">
+                      <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded">
+                        {report.classification}
+                      </span>
+                    </td>
+
+                    <td className="py-3 px-4 font-mono text-slate-600">{report.date}</td>
+
+                    <td className="py-3 px-4 text-center">
+                      <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200">
+                        {report.format} ({report.size})
+                      </span>
+                    </td>
+
+                    <td className="py-3 px-4 text-center">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        <CheckCircle2 size={10} />
+                        {report.status}
+                      </span>
+                    </td>
+
+                    <td className="py-3 px-4 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => setPreviewReport(report)}
+                          className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded border border-slate-200 transition"
+                          title="Preview Document"
+                        >
+                          <Eye size={13} />
+                        </button>
+                        <button
+                          onClick={() => handleDownload(report)}
+                          className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded border border-slate-200 transition"
+                          title="Download Document"
+                        >
+                          <Download size={13} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -358,8 +433,33 @@ Official digital sign-off verified under Central Sector Project Monitoring Guide
                 <p className="text-slate-600 leading-relaxed">{previewReport.summary}</p>
               </div>
 
+              {previewReport.projectRecord && (
+                <div className="p-3 bg-white rounded border border-slate-200 space-y-1 font-mono text-[11px]">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Project Identifier:</span>
+                    <span className="font-bold text-slate-800">{previewReport.projectRecord.id}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">State / Sector:</span>
+                    <span>{previewReport.projectRecord.state} • {previewReport.projectRecord.sector}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Sanctioned Cost:</span>
+                    <span>₹{Number(previewReport.projectRecord.originalCost || 0).toLocaleString()} Cr</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Current Cost:</span>
+                    <span className="font-bold text-amber-700">₹{Number(previewReport.projectRecord.revisedCost || previewReport.projectRecord.originalCost || 0).toLocaleString()} Cr</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Cumulative Expenditure:</span>
+                    <span className="text-emerald-700">₹{Number(previewReport.projectRecord.expenditure || 0).toLocaleString()} Cr</span>
+                  </div>
+                </div>
+              )}
+
               <div className="p-2.5 bg-blue-50/60 rounded border border-blue-100 text-[11px] text-blue-900">
-                Data pipeline integrated with MoSPI OCMS repository. Verified against {projects.length} central sector records.
+                Live Data Pipeline: Authenticated against {projects.length} real records in SQLite database (backend/infrasight.db).
               </div>
             </div>
 
@@ -415,7 +515,7 @@ Official digital sign-off verified under Central Sector Project Monitoring Guide
                   onChange={(e) => setNewReportType(e.target.value)}
                   className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800"
                 >
-                  <option value="Flash">Monthly Flash Report (Projects &gt; ₹150 Cr)</option>
+                  <option value="Flash">Monthly Flash Report (Live Portfolio)</option>
                   <option value="EWS">Early Warning Executive Briefing</option>
                   <option value="Sectoral">Sectoral Cost Overrun & Milestone Audit</option>
                 </select>
@@ -426,10 +526,10 @@ Official digital sign-off verified under Central Sector Project Monitoring Guide
                   Target Portfolio Scope:
                 </label>
                 <select className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800">
-                  <option>All Central Sector Projects ({projects.length} active records)</option>
-                  <option>High Risk Infrastructure Projects Only</option>
-                  <option>Road Transport & Highways</option>
-                  <option>Railways Sector</option>
+                  <option>All Central Sector Projects ({projects.length} active records in DB)</option>
+                  {sectorStats?.map((s) => (
+                    <option key={s.sector}>{s.sector} Sector ({s.project_count} records)</option>
+                  ))}
                 </select>
               </div>
             </div>

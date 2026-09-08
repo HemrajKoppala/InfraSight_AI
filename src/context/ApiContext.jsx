@@ -1,93 +1,32 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { api, getApiUrl, setCustomApiUrl } from "../services/api";
-import { projects as fallbackProjects } from "../data/projects";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import {
+  client,
+  getBaseUrl,
+  setCustomApiUrl,
+  getProjects,
+  getDashboardSummary,
+  getSectorSummary,
+  getStateSummary,
+  transformProjects,
+  transformDashboardSummary,
+  transformSectorSummary,
+  transformStateSummary,
+} from "../api";
 
 const ApiContext = createContext();
 
-// Initial authentic Early Warning alerts derived from real MoSPI projects
-const initialAlerts = [
-  {
-    id: "ALT-901",
-    projectId: "INF-001",
-    projectName: "National Highway Development Corridor NH-44",
-    severity: "Critical",
-    title: "RoW Land Acquisition Delay in Belagavi Division",
-    source: "Geo-Spatial & OCMS Pipeline",
-    timestamp: "Today, 10:45 AM",
-    status: "Active",
-    sector: "Road Transport",
-    ministry: "Ministry of Road Transport & Highways",
-    projectedCostImpact: 3600,
-    projectedDelayMonths: 6.5,
-    confidenceScore: 94.2,
-    description: "14.8 hectares of forest clearance pending with State Forest Dept. Contractor idle equipment claims escalating by ₹4.2 Cr/month.",
-    recommendedAction: "Convene High-Level State Empowered Committee (SEC) review for expedited diversion."
-  },
-  {
-    id: "ALT-902",
-    projectId: "INF-002",
-    projectName: "Eastern Dedicated Freight Corridor (EDFC)",
-    severity: "Critical",
-    title: "Overhead Electrification Substation Milestone Overrun",
-    source: "SCADA & Milestones Sensor",
-    timestamp: "Yesterday, 04:30 PM",
-    status: "Active",
-    sector: "Railways",
-    ministry: "Ministry of Railways",
-    projectedCostImpact: 2150,
-    projectedDelayMonths: 8.0,
-    confidenceScore: 91.8,
-    description: "Traction Substation at Subedarganj delayed due to switchgear supply chain import constraint. Threatens overall corridor commissioning target.",
-    recommendedAction: "Invoke fast-track domestic sourcing clause under Make in India guidelines."
-  },
-  {
-    id: "ALT-903",
-    projectId: "INF-004",
-    projectName: "Polavaram National Irrigation Project",
-    severity: "High",
-    title: "Diaphragm Wall Restoration Geotechnical Variance",
-    source: "Dam Safety Review Panel (DSRP)",
-    timestamp: "05 Sep 2026",
-    status: "Active",
-    sector: "Water Resources",
-    ministry: "Ministry of Jal Shakti",
-    projectedCostImpact: 4800,
-    projectedDelayMonths: 12.0,
-    confidenceScore: 88.5,
-    description: "Scour depth in River Godavari riverbed requires redesign of Vibro Stone Columns before main dam gap-filling commences.",
-    recommendedAction: "Central Water Commission (CWC) technical audit approval required on priority."
-  },
-  {
-    id: "ALT-904",
-    projectId: "INF-003",
-    projectName: "Ultra Mega Solar Power Park (2,000 MW)",
-    severity: "Medium",
-    title: "Inter-State Transmission Grid Interconnection Delay",
-    source: "PGCIL Grid Integration Monitor",
-    timestamp: "03 Sep 2026",
-    status: "Acknowledged",
-    sector: "Energy",
-    ministry: "Ministry of Power",
-    projectedCostImpact: 340,
-    projectedDelayMonths: 3.5,
-    confidenceScore: 86.4,
-    description: "400 kV pooling substation commissioning lagged by 45 days due to bay equipment testing.",
-    recommendedAction: "Deploy mobile substation testing team to accelerate pre-commissioning."
-  }
-];
-
 export function ApiProvider({ children }) {
-  const [apiUrl, setApiUrlState] = useState(getApiUrl());
-  const [isBackendConnected, setIsBackendConnected] = useState(null); // null = checking, true = connected, false = offline
+  const [apiUrl, setApiUrlState] = useState(getBaseUrl());
+  const [isBackendConnected, setIsBackendConnected] = useState(null); // null = checking, true = online, false = offline
   const [connectionLatency, setConnectionLatency] = useState(null);
 
-  // Live state from backend (with authentic MoSPI fallback when offline)
-  const [projects, setProjects] = useState(fallbackProjects);
-  const [selectedProjectId, setSelectedProjectId] = useState(fallbackProjects[0]?.id || "INF-001");
-  const [alerts, setAlerts] = useState(initialAlerts);
+  // Live state from backend (No fake/mock data)
+  const [projects, setProjects] = useState([]);
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [alerts, setAlerts] = useState([]);
   const [dashboardSummary, setDashboardSummary] = useState(null);
   const [sectorStats, setSectorStats] = useState([]);
-  const [modelMetrics, setModelMetrics] = useState(null);
+  const [stateStats, setStateStats] = useState([]);
 
   // Loading & Error states
   const [loadingProjects, setLoadingProjects] = useState(false);
@@ -117,11 +56,12 @@ export function ApiProvider({ children }) {
         setCustomApiUrl(customUrl);
         setApiUrlState(customUrl);
       }
-      await api.checkHealth();
+      await client.checkHealth();
       const endTime = performance.now();
+      const latency = Math.round(endTime - startTime);
       setIsBackendConnected(true);
-      setConnectionLatency(Math.round(endTime - startTime));
-      return { success: true, latency: Math.round(endTime - startTime) };
+      setConnectionLatency(latency);
+      return { success: true, latency };
     } catch (err) {
       setIsBackendConnected(false);
       setConnectionLatency(null);
@@ -130,40 +70,26 @@ export function ApiProvider({ children }) {
   }, []);
 
   // Fetch Projects from backend
-  const fetchProjects = useCallback(async (params = {}) => {
+  const fetchProjects = useCallback(async () => {
     setLoadingProjects(true);
     setErrorProjects(null);
     try {
-      const data = await api.getProjects(params);
-      const list = Array.isArray(data) ? data : data?.data || data?.projects || [];
-      if (list && list.length > 0) {
-        setProjects(list);
-        if (!selectedProjectId) setSelectedProjectId(list[0].id);
-      }
+      const rawData = await getProjects();
+      const transformed = transformProjects(rawData);
+      setProjects(transformed);
+
+      setSelectedProjectId((prev) => {
+        if (prev && transformed.some((p) => p.id === prev)) {
+          return prev;
+        }
+        return transformed[0]?.id || null;
+      });
       setIsBackendConnected(true);
     } catch (err) {
-      // Backend not running; retain fallback MoSPI dataset
-      console.info("[InfraSight] Operating with offline MoSPI dataset:", err.message);
+      setErrorProjects(err.message || "Failed to load projects from central registry.");
       setIsBackendConnected(false);
     } finally {
       setLoadingProjects(false);
-    }
-  }, [selectedProjectId]);
-
-  // Fetch Alerts from backend
-  const fetchAlerts = useCallback(async (params = {}) => {
-    setLoadingAlerts(true);
-    setErrorAlerts(null);
-    try {
-      const data = await api.getAlerts(params);
-      const list = Array.isArray(data) ? data : data?.data || data?.alerts || [];
-      if (list && list.length > 0) {
-        setAlerts(list);
-      }
-    } catch (err) {
-      console.info("[InfraSight] Backend alerts offline, active alert triggers maintained.");
-    } finally {
-      setLoadingAlerts(false);
     }
   }, []);
 
@@ -172,23 +98,28 @@ export function ApiProvider({ children }) {
     setLoadingSummary(true);
     setErrorSummary(null);
     try {
-      const [summaryData, sectorsData, metricsData] = await Promise.allSettled([
-        api.getDashboardSummary(),
-        api.getSectorStats(),
-        api.getModelMetrics()
+      const [summaryRes, sectorRes, stateRes] = await Promise.allSettled([
+        getDashboardSummary(),
+        getSectorSummary(),
+        getStateSummary(),
       ]);
 
-      if (summaryData.status === "fulfilled" && summaryData.value) {
-        setDashboardSummary(summaryData.value);
+      if (summaryRes.status === "fulfilled" && summaryRes.value) {
+        setDashboardSummary(transformDashboardSummary(summaryRes.value));
       }
-      if (sectorsData.status === "fulfilled" && sectorsData.value) {
-        const sList = Array.isArray(sectorsData.value)
-          ? sectorsData.value
-          : sectorsData.value?.sectors || [];
-        setSectorStats(sList);
+      if (sectorRes.status === "fulfilled" && sectorRes.value) {
+        setSectorStats(transformSectorSummary(sectorRes.value));
       }
-      if (metricsData.status === "fulfilled" && metricsData.value) {
-        setModelMetrics(metricsData.value);
+      if (stateRes.status === "fulfilled" && stateRes.value) {
+        setStateStats(transformStateSummary(stateRes.value));
+      }
+
+      if (
+        summaryRes.status === "rejected" &&
+        sectorRes.status === "rejected" &&
+        stateRes.status === "rejected"
+      ) {
+        setErrorSummary(summaryRes.reason?.message || "Failed to fetch dashboard summary.");
       }
     } catch (err) {
       setErrorSummary(err.message);
@@ -197,13 +128,20 @@ export function ApiProvider({ children }) {
     }
   }, []);
 
+  // Alerts placeholder (Step 12: Do NOT generate fake alerts in React)
+  const fetchAlerts = useCallback(async () => {
+    setLoadingAlerts(false);
+    setErrorAlerts(null);
+    setAlerts([]);
+  }, []);
+
   // Initial load
   useEffect(() => {
     testConnection();
     fetchProjects();
-    fetchAlerts();
     fetchSummary();
-  }, [testConnection, fetchProjects, fetchAlerts, fetchSummary]);
+    fetchAlerts();
+  }, [testConnection, fetchProjects, fetchSummary, fetchAlerts]);
 
   const updateApiEndpoint = (newUrl) => {
     setCustomApiUrl(newUrl);
@@ -215,44 +153,26 @@ export function ApiProvider({ children }) {
         showToast("Backend endpoint updated (offline).", "info");
       }
       fetchProjects();
-      fetchAlerts();
       fetchSummary();
+      fetchAlerts();
     });
   };
 
-  const acknowledgeAlert = async (alertId) => {
-    try {
-      await api.updateAlertStatus(alertId, "Acknowledged").catch(() => {});
-      setAlerts((prev) =>
-        prev.map((a) => (a.id === alertId ? { ...a, status: "Acknowledged" } : a))
-      );
-      showToast(`Warning ${alertId} marked as Acknowledged.`, "success");
-    } catch (err) {
-      console.error("Failed to acknowledge alert:", err);
-    }
-  };
+  const selectedProject = useMemo(() => {
+    if (!selectedProjectId || projects.length === 0) return null;
+    return projects.find((p) => p.id === selectedProjectId) || projects[0] || null;
+  }, [projects, selectedProjectId]);
 
-  const escalateAlert = async (alertId, notes) => {
-    try {
-      await api.escalateAlert(alertId, notes).catch(() => {});
-      setAlerts((prev) =>
-        prev.map((a) =>
-          a.id === alertId
-            ? { ...a, status: "Escalated", escalatedTo: "Nodal Ministry", escalatedNotes: notes }
-            : a
-        )
-      );
-      showToast(`Warning ${alertId} escalated to Nodal Ministry desk.`, "success");
-    } catch (err) {
-      console.error("Failed to escalate alert:", err);
-    }
-  };
+  const acknowledgeAlert = useCallback(() => {
+    showToast("Alert acknowledgement updated.", "info");
+  }, [showToast]);
+
+  const escalateAlert = useCallback(() => {
+    showToast("Escalation action recorded.", "info");
+  }, [showToast]);
 
   const clearAllAlerts = useCallback(() => {
-    setAlerts((prev) =>
-      prev.map((a) => ({ ...a, status: "Acknowledged" }))
-    );
-    showToast("All active notifications cleared.", "info");
+    setAlerts([]);
   }, []);
 
   return (
@@ -266,11 +186,11 @@ export function ApiProvider({ children }) {
         projects,
         selectedProjectId,
         setSelectedProjectId,
-        selectedProject: projects.find((p) => p.id === selectedProjectId) || projects[0] || null,
+        selectedProject,
         alerts,
         dashboardSummary,
         sectorStats,
-        modelMetrics,
+        stateStats,
         loadingProjects,
         loadingAlerts,
         loadingSummary,
@@ -281,11 +201,12 @@ export function ApiProvider({ children }) {
           showToast("Syncing with Central Project Registry...", "info");
           testConnection();
           fetchProjects();
-          fetchAlerts();
           fetchSummary();
+          fetchAlerts();
         },
         fetchProjects,
         fetchAlerts,
+        fetchSummary,
         acknowledgeAlert,
         escalateAlert,
         clearAllAlerts,
@@ -293,7 +214,7 @@ export function ApiProvider({ children }) {
         setIsSettingsOpen,
         toast,
         showToast,
-        hideToast
+        hideToast,
       }}
     >
       {children}

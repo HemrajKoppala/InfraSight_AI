@@ -65,11 +65,10 @@ function Analytics() {
       approved += orig;
       revised += rev;
       spend += exp;
-      if ((p.overallRisk || 0) >= 70) {
+      if ((p.timeOverrunMonths || 0) > 0) {
         highRiskOutlay += rev;
       }
-      // calculate projected delay
-      totalDelayMonths += p.aiPredictions?.predictedDelayMonths || (p.status === "Delayed" ? 6 : 2);
+      totalDelayMonths += (p.timeOverrunMonths || 0);
     });
 
     const varianceCr = revised - approved;
@@ -111,36 +110,30 @@ function Analytics() {
     }));
   }, [filteredProjects]);
 
-  // Expenditure Timeline Curve Data
+  // Sector Expenditure Comparison for Portfolio View
   const expenditureCurveData = useMemo(() => {
-    return [
-      { quarter: "Q1 2024", planned: 12000, actual: 11200, aiForecast: 11200 },
-      { quarter: "Q2 2024", planned: 25000, actual: 23100, aiForecast: 23100 },
-      { quarter: "Q3 2024", planned: 41000, actual: 36800, aiForecast: 36800 },
-      { quarter: "Q4 2024", planned: 59000, actual: 51200, aiForecast: 51200 },
-      { quarter: "Q1 2025", planned: 78000, actual: 64900, aiForecast: 64900 },
-      { quarter: "Q2 2025", planned: 96000, actual: 78400, aiForecast: 78400 },
-      { quarter: "Q3 2025", planned: 115000, actual: null, aiForecast: 92100 },
-      { quarter: "Q4 2025", planned: 135000, actual: null, aiForecast: 108400 },
-      { quarter: "Q1 2026", planned: 155000, actual: null, aiForecast: 127500 }
-    ];
-  }, []);
+    return sectorComparisonData.map((s) => ({
+      quarter: s.sector,
+      planned: s.approved,
+      revised: s.revised,
+      actual: s.expenditure,
+    }));
+  }, [sectorComparisonData]);
 
-  // Status Breakdown Pie Data
+  // Status Breakdown Pie Data from actual delay status
   const statusPieData = useMemo(() => {
-    const counts = { Ongoing: 0, Delayed: 0, Critical: 0, Completed: 0 };
+    const counts = { "On Track": 0, "Delayed": 0 };
     filteredProjects.forEach((p) => {
-      if ((p.overallRisk || 0) >= 80) counts.Critical += 1;
-      else if (p.status === "Delayed") counts.Delayed += 1;
-      else if (p.status === "Completed") counts.Completed += 1;
-      else counts.Ongoing += 1;
+      if ((p.timeOverrunMonths || 0) > 0 || p.status === "Delayed") {
+        counts.Delayed += 1;
+      } else {
+        counts["On Track"] += 1;
+      }
     });
 
     return [
-      { name: "Ongoing", value: counts.Ongoing, color: "#3b82f6" },
+      { name: "On Track", value: counts["On Track"], color: "#10b981" },
       { name: "Delayed", value: counts.Delayed, color: "#f59e0b" },
-      { name: "Critical Risk", value: counts.Critical, color: "#ef4444" },
-      { name: "Completed", value: counts.Completed, color: "#10b981" }
     ].filter((item) => item.value > 0);
   }, [filteredProjects]);
 
