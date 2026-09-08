@@ -9,64 +9,35 @@ import {
   LogOut,
   User,
   Shield,
-  CheckCircle2,
-  SlidersHorizontal
+  CheckCircle2
 } from "lucide-react";
 import { useApi } from "../context/ApiContext";
 import { useAuth } from "../context/AuthContext";
-import { hasPermission, PERMISSIONS } from "../lib/permissions";
 import logoIcon from "../assets/logo-icon.png";
+
+const NAV_ITEMS = [
+  { id: "dashboard", label: "Dashboard" },
+  { id: "projects", label: "Projects" },
+  { id: "ai", label: "Risk Intelligence" },
+  { id: "alerts", label: "Alerts" },
+  { id: "map", label: "Map" },
+  { id: "datastatus", label: "Data Status" },
+];
 
 function Header({
   currentPage,
   onSelectPage,
   onToggleMobileMenu,
   searchQuery = "",
-  setSearchQuery = () => { }
+  setSearchQuery = () => {},
 }) {
-  const { alerts, selectedProject, setSelectedProjectId, clearAllAlerts, acknowledgeAlert } = useApi();
+  const { alerts, setSelectedProjectId, clearAllAlerts, acknowledgeAlert } = useApi();
   const { currentUser, role, logout } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
 
   const unresolvedAlerts = alerts.filter(
     (a) => a.status !== "Acknowledged" && a.status !== "Resolved"
   );
-
-  const getPageTitle = () => {
-    switch (currentPage) {
-      case "dashboard":
-        return "Central Operations Dashboard";
-      case "projects":
-        return "Infrastructure Project Repository";
-      case "analytics":
-        return "Portfolio Analytics & Variance Analysis";
-      case "ai":
-        return "AI Risk Intelligence & Decision Support";
-      case "alerts":
-        return "Early Warning System (EWS) Console";
-      case "map":
-        return "Geographic Intelligence & Infrastructure Map";
-      case "datastatus":
-        return "IPMIS Data Ingestion Pipeline & Quality Status";
-      case "models":
-        return "ML Model Performance & SHAP Benchmarks";
-      case "reports":
-        return "Official MoSPI Reports & Flash Briefings";
-      case "users":
-      case "approvals":
-        return "User Access Control & Administration";
-      case "details":
-        return selectedProject
-          ? `Project Dossier: ${selectedProject.id}`
-          : "Project Details";
-      case "403":
-        return "Access Restricted (403)";
-      case "404":
-        return "Page Not Found (404)";
-      default:
-        return "Operations Control";
-    }
-  };
 
   const userInitials = currentUser?.name
     ? currentUser.name
@@ -75,168 +46,145 @@ function Header({
         .slice(0, 2)
         .join("")
         .toUpperCase()
-    : "ND";
+    : "GO";
 
   return (
-    <header className="sticky top-0 z-30 bg-white border-b border-[#D9E0E7] px-4 sm:px-6 shadow-2xs">
-      <div className="h-16 flex items-center justify-between gap-4">
-        {/* Left: Mobile Menu Trigger & Official Brand / Full Page Title */}
-        <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+    <header className="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-2xs">
+      {/* Top Ministry & Platform Identity Bar */}
+      <div className="px-4 sm:px-6 py-2.5 flex items-center justify-between border-b border-slate-100 gap-4">
+        <div className="flex items-center gap-3 min-w-0">
           {onToggleMobileMenu && (
             <button
               type="button"
               onClick={onToggleMobileMenu}
-              aria-label="Open navigation sidebar"
-              className="md:hidden p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-[#172033] border border-[#D9E0E7] transition focus:outline-none focus:ring-2 focus:ring-[#0B75B8] cursor-pointer shrink-0"
+              aria-label="Open menu"
+              className="md:hidden p-1.5 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer"
             >
               <Menu size={18} />
             </button>
           )}
 
-          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
-            {/* Official Logo Badge */}
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white border border-slate-200/90 p-1 shadow-2xs flex items-center justify-center shrink-0">
-              <img
-                src={logoIcon}
-                alt="InfraSight AI"
-                className="w-full h-full object-contain"
-              />
+          {/* Official MoSPI Emblem & Identity */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-xs bg-slate-50 border border-slate-200 p-0.5 flex items-center justify-center shrink-0">
+              <img src={logoIcon} alt="Emblem" className="w-full h-full object-contain" />
             </div>
 
-            <div className="min-w-0">
-              <h1 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 tracking-tight leading-tight truncate">
-                {getPageTitle()}
-              </h1>
-              <p className="text-[10px] text-slate-500 font-medium tracking-normal hidden sm:block truncate">
-                InfraSight AI &bull; Infrastructure Intelligence Platform
-              </p>
+            <div className="min-w-0 leading-tight">
+              <div className="text-[11px] font-semibold text-slate-500 truncate">
+                Government of India &bull; Ministry of Statistics and Programme Implementation &bull; Infrastructure & Project Monitoring Division
+              </div>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-sm font-bold text-slate-900 tracking-tight">
+                  InfraSight AI
+                </span>
+                <span className="text-slate-300">|</span>
+                <span className="text-xs text-blue-700 font-medium">
+                  Project Intelligence & Early Warning
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Right: Search, Notification Bell, User Badge, Logout */}
-        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-          {/* Global Search Box */}
-          <div className="relative hidden md:block">
-            <Search
-              size={13}
-              className="absolute left-3 top-2.5 text-[#64748B] pointer-events-none"
-            />
+        {/* Right Tools: Search, Alert Bell, User Profile, Logout */}
+        <div className="flex items-center gap-3 shrink-0">
+          {/* Quick Search */}
+          <div className="relative hidden lg:block">
+            <Search size={13} className="absolute left-2.5 top-2.5 text-slate-400 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search project ID, name, sector..."
+              placeholder="Search project..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-48 lg:w-60 pl-8 pr-8 py-1.5 bg-[#F5F7FA] border border-[#D9E0E7] rounded-lg text-xs font-medium text-[#172033] placeholder:text-[#64748B] outline-none focus:bg-white focus:border-[#0B75B8] focus:ring-1 focus:ring-[#0B75B8]/20 transition"
+              className="w-48 pl-7 pr-7 py-1 bg-slate-50 border border-slate-200 rounded-xs text-xs text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:outline-hidden"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-2 text-[#64748B] hover:text-[#172033] cursor-pointer"
-                title="Clear search"
+                className="absolute right-2 top-2 text-slate-400 hover:text-slate-700"
               >
-                <X size={13} />
+                <X size={12} />
               </button>
             )}
           </div>
 
-          {/* Early Warning Notification Bell */}
+          {/* Notification Bell */}
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 text-[#172033] hover:text-[#07133D] hover:bg-[#F5F7FA] rounded-lg border border-[#D9E0E7] transition cursor-pointer"
-              title="Notifications"
-              aria-label="Notifications"
+              className="relative p-1.5 rounded-xs border border-slate-200 hover:bg-slate-50 text-slate-700 cursor-pointer"
+              title="Active Early Warning Notifications"
             >
-              <Bell size={16} />
+              <Bell size={15} />
               {unresolvedAlerts.length > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] bg-[#C53030] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 animate-pulse">
+                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] bg-red-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5">
                   {unresolvedAlerts.length}
                 </span>
               )}
             </button>
 
-            {/* Notification Dropdown Panel */}
+            {/* Notification Dropdown */}
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-[#D9E0E7] rounded-lg shadow-lg z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
-                <div className="p-3 bg-[#F5F7FA] border-b border-[#D9E0E7] flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <TriangleAlert size={15} className="text-[#EA580C]" />
-                    <span className="text-xs font-bold text-[#172033] uppercase tracking-wider">
-                      Active Early Warnings ({unresolvedAlerts.length})
-                    </span>
-                  </div>
+              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-300 rounded-xs shadow-lg z-50 overflow-hidden text-xs">
+                <div className="p-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                  <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <TriangleAlert size={14} className="text-amber-600" />
+                    Early Warnings ({unresolvedAlerts.length})
+                  </span>
                   <div className="flex items-center gap-2">
                     {unresolvedAlerts.length > 0 && (
                       <button
                         onClick={clearAllAlerts}
-                        className="text-[11px] text-[#0B75B8] hover:text-[#07133D] font-bold hover:underline cursor-pointer"
-                        title="Dismiss all notifications"
+                        className="text-[11px] text-blue-700 hover:underline font-semibold"
                       >
-                        Clear all
+                        Dismiss All
                       </button>
                     )}
-                    <button
-                      onClick={() => setShowNotifications(false)}
-                      className="text-[#64748B] hover:text-[#172033] cursor-pointer"
-                    >
+                    <button onClick={() => setShowNotifications(false)} className="text-slate-400 hover:text-slate-700">
                       <X size={14} />
                     </button>
                   </div>
                 </div>
 
-                <div className="max-h-80 overflow-y-auto divide-y divide-[#D9E0E7]">
+                <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
                   {unresolvedAlerts.length === 0 ? (
-                    <div className="p-6 text-center text-[#64748B] text-xs">
-                      <CheckCircle2 size={24} className="mx-auto text-[#16803C] mb-2" />
+                    <div className="p-4 text-center text-slate-500">
+                      <CheckCircle2 size={20} className="mx-auto text-emerald-600 mb-1" />
                       No critical early warning alerts at this time.
                     </div>
                   ) : (
-                    unresolvedAlerts.slice(0, 6).map((alert) => (
-                      <div
-                        key={alert.id}
-                        className="p-3 hover:bg-slate-50 transition flex items-start justify-between gap-3 text-left"
-                      >
+                    unresolvedAlerts.slice(0, 5).map((a) => (
+                      <div key={a.id} className="p-2.5 hover:bg-slate-50 flex items-start justify-between gap-2">
                         <div
-                          className="flex-1 min-w-0 cursor-pointer"
+                          className="flex-1 cursor-pointer"
                           onClick={() => {
-                            if (alert.projectId) {
-                              setSelectedProjectId(alert.projectId);
+                            if (a.projectId) {
+                              setSelectedProjectId(a.projectId);
                               if (onSelectPage) onSelectPage("details");
-                            } else {
-                              if (onSelectPage) onSelectPage("alerts");
+                            } else if (onSelectPage) {
+                              onSelectPage("alerts");
                             }
                             setShowNotifications(false);
                           }}
                         >
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-1.5 mb-0.5">
                             <span
-                              className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                                alert.severity === "Critical"
-                                  ? "bg-rose-100 text-rose-800 border border-rose-200"
-                                  : alert.severity === "High"
-                                  ? "bg-amber-100 text-amber-800 border border-amber-200"
-                                  : "bg-blue-100 text-blue-800 border border-blue-200"
+                              className={`text-[9px] font-bold px-1 py-0.2 rounded uppercase ${
+                                a.severity === "Critical"
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-amber-100 text-amber-800"
                               }`}
                             >
-                              {alert.severity}
+                              {a.severity}
                             </span>
-                            <span className="text-[10px] text-[#64748B]">
-                              {alert.projectId || "System"}
-                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">{a.projectId}</span>
                           </div>
-                          <p className="text-xs font-semibold text-[#172033] line-clamp-1">
-                            {alert.message}
-                          </p>
-                          <p className="text-[10px] text-[#64748B] mt-0.5">
-                            {alert.timestamp || "Recent"}
-                          </p>
+                          <p className="font-semibold text-slate-800 line-clamp-1">{a.message}</p>
                         </div>
-
                         <button
-                          onClick={() => acknowledgeAlert(alert.id)}
-                          className="text-[10px] text-[#64748B] hover:text-[#172033] border border-[#D9E0E7] hover:bg-white rounded px-1.5 py-0.5 shrink-0 cursor-pointer"
-                          title="Dismiss notification"
+                          onClick={() => acknowledgeAlert(a.id)}
+                          className="text-[10px] text-slate-500 hover:text-slate-900 border border-slate-200 rounded px-1.5 py-0.5 shrink-0"
                         >
                           Dismiss
                         </button>
@@ -245,52 +193,77 @@ function Header({
                   )}
                 </div>
 
-                <div className="p-2 bg-[#F5F7FA] border-t border-[#D9E0E7] text-center">
+                <div className="p-2 bg-slate-50 border-t border-slate-200 text-center">
                   <button
                     onClick={() => {
                       if (onSelectPage) onSelectPage("alerts");
                       setShowNotifications(false);
                     }}
-                    className="text-xs font-bold text-[#0B75B8] hover:text-[#07133D] inline-flex items-center gap-1 cursor-pointer"
+                    className="text-xs font-bold text-blue-700 hover:underline inline-flex items-center gap-1"
                   >
-                    View All Warnings Console <ArrowUpRight size={13} />
+                    <span>View All Warnings Console</span>
+                    <ArrowUpRight size={12} />
                   </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* User Profile Badge */}
-          <div className="flex items-center gap-2 pl-1 sm:pl-2 border-l border-[#D9E0E7]">
-            <div
-              className="w-8 h-8 rounded-lg bg-[#07133D] text-white flex items-center justify-center text-xs font-bold font-mono shadow-2xs shrink-0"
-              title={`${currentUser?.name || "User"} (${role || "User"})`}
-            >
+          {/* User Badge */}
+          <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+            <div className="w-7 h-7 rounded-xs bg-[#0b2240] text-white flex items-center justify-center text-[11px] font-bold font-mono">
               {userInitials}
             </div>
-
-            <div className="hidden lg:flex flex-col min-w-0">
-              <span className="text-xs font-bold text-[#172033] truncate leading-tight">
+            <div className="hidden xl:flex flex-col text-left">
+              <span className="text-xs font-bold text-slate-900 leading-tight">
                 {currentUser?.name || "MoSPI Officer"}
               </span>
-              <span className="text-[10px] text-[#64748B] uppercase font-mono tracking-wider truncate">
-                {role || "Viewer"}
-              </span>
+              <span className="text-[10px] text-slate-500 uppercase font-mono">{role || "Officer"}</span>
             </div>
           </div>
 
-          {/* Logout Button */}
+          {/* Logout */}
           {logout && (
             <button
               type="button"
               onClick={logout}
-              className="p-2 text-[#64748B] hover:text-[#C53030] hover:bg-rose-50 rounded-lg border border-[#D9E0E7] transition cursor-pointer shrink-0"
-              title="Sign Out of Portal"
-              aria-label="Sign Out"
+              className="p-1.5 text-slate-500 hover:text-red-700 hover:bg-red-50 rounded-xs border border-slate-200 transition"
+              title="Sign Out"
             >
-              <LogOut size={15} />
+              <LogOut size={14} />
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Primary Navigation Row: Dashboard | Projects | Risk Intelligence | Alerts | Map | Data Status */}
+      <div className="px-4 sm:px-6 bg-slate-50/90 flex items-center justify-between overflow-x-auto no-scrollbar text-xs">
+        <nav className="flex items-center gap-1 sm:gap-2 py-1">
+          {NAV_ITEMS.map((item) => {
+            const isActive =
+              currentPage === item.id ||
+              (item.id === "projects" && currentPage === "details");
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => onSelectPage && onSelectPage(item.id)}
+                className={`px-3 py-1.5 font-semibold text-xs rounded-xs transition-colors whitespace-nowrap cursor-pointer ${
+                  isActive
+                    ? "bg-[#0b2240] text-white shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="hidden md:flex items-center gap-2 text-[11px] text-slate-500 font-mono shrink-0">
+          <span>Review Cycle: July 2026</span>
+          <span className="text-slate-300">|</span>
+          <span className="text-emerald-700 font-semibold">&bull; Central Registry Live</span>
         </div>
       </div>
     </header>

@@ -16,7 +16,7 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import IndiaMap from "../components/IndiaMap";
-import { STATES_DATA, PROJECTS_REQUIRING_ATTENTION, MINISTRIES, SECTORS } from "../data/paimanaData";
+import { STATES_DATA, PROJECTS_REQUIRING_ATTENTION, MINISTRIES, SECTORS } from "../data/infraSightData";
 import { useApi } from "../context/ApiContext";
 
 // Real geolocated central sector project records

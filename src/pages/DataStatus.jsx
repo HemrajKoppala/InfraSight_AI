@@ -13,7 +13,7 @@ import {
   HardDrive,
   Download,
 } from "lucide-react";
-import { REPORT_METADATA } from "../data/paimanaData";
+import { REPORT_METADATA } from "../data/infraSightData";
 import { useApi } from "../context/ApiContext";
 
 export default function DataStatus() {
