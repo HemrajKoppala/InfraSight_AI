@@ -27,6 +27,7 @@ router = APIRouter(
 )
 
 
+@router.get("", response_model=list[Project])
 @router.get("/", response_model=list[Project])
 def get_projects(
     db: Session = Depends(get_db)
