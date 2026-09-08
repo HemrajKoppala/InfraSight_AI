@@ -44,6 +44,12 @@ function Header({
         return "AI Risk Intelligence & Decision Support";
       case "alerts":
         return "Early Warning System (EWS) Console";
+      case "map":
+        return "Geographic Intelligence & Infrastructure Map";
+      case "datastatus":
+        return "IPMIS Data Ingestion Pipeline & Quality Status";
+      case "models":
+        return "ML Model Performance & SHAP Benchmarks";
       case "reports":
         return "Official MoSPI Reports & Flash Briefings";
       case "users":
