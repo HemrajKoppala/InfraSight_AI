@@ -8,35 +8,38 @@ PROCESSED_DIR = Path("backend/data/processed")
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
 
-FILES = [
-    "FlashReport_April2026.pdf",
-    "FlashReport_May2026.pdf",
-    "FlashReport_June_2026.pdf",
-    "FlashReport_July_2026.pdf",
-]
-
-
 def extract_pdf(pdf_path):
 
     print(f"\nProcessing: {pdf_path.name}")
 
-    doc = pymupdf.open(pdf_path)
+    try:
+        doc = pymupdf.open(pdf_path)
 
-    output = []
+        output = []
 
-    for page_number, page in enumerate(doc, start=1):
+        for page_number, page in enumerate(doc, start=1):
 
-        text = page.get_text("text")
+            try:
+                text = page.get_text("text")
+            except Exception as e:
+                print(f"  Page {page_number}: extraction error - {e}")
+                text = ""
 
-        output.append(
-            f"\n===== PAGE {page_number} =====\n"
-        )
+            output.append(
+                f"\n===== PAGE {page_number} =====\n"
+            )
 
-        output.append(text)
+            output.append(text)
 
-    doc.close()
+        doc.close()
 
-    return "".join(output)
+        return "".join(output)
+
+    except Exception as e:
+
+        print(f"ERROR opening {pdf_path.name}: {e}")
+
+        return ""
 
 
 def main():
@@ -45,16 +48,26 @@ def main():
     print("PAIMANA PDF TEXT EXTRACTION")
     print("=" * 60)
 
-    for filename in FILES:
+    # Automatically find every PDF in backend/data/raw
+    pdf_files = sorted(RAW_DIR.glob("*.pdf"))
 
-        pdf_path = RAW_DIR / filename
+    if not pdf_files:
 
-        if not pdf_path.exists():
+        print("\nNo PDF files found.")
 
-            print(f"Missing: {filename}")
-            continue
+        return
+
+    print(f"\nPDF files found: {len(pdf_files)}")
+
+    for pdf_path in pdf_files:
 
         text = extract_pdf(pdf_path)
+
+        if not text:
+
+            print(f"Skipped: {pdf_path.name}")
+
+            continue
 
         output_name = pdf_path.stem + "_pymupdf.txt"
 
@@ -65,13 +78,9 @@ def main():
             encoding="utf-8"
         )
 
-        print(
-            f"Saved: {output_path}"
-        )
+        print(f"Saved: {output_path}")
 
-        print(
-            f"Characters: {len(text):,}"
-        )
+        print(f"Characters: {len(text):,}")
 
 
 if __name__ == "__main__":
